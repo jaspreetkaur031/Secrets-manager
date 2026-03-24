@@ -1,0 +1,83 @@
+:root {
+  /* HSL Colors: Modern Developer Dark Theme */
+  /* Deep, rich gray-black instead of blue-grey */
+  --background: 224 71% 4%;
+
+  /* Slightly lighter for cards/sidebar */
+  --surface: 224 71% 7%;
+
+  /* Interactive hover state */
+  --surface-hover: 224 71% 11%;
+
+  /* Subtle borders */
+  --border: 224 71% 15%;
+
+  /* Modern Violet/Purple - slightly softer */
+  --primary: 250 95% 64%;
+  --primary-hover: 250 95% 70%;
+  --primary-text: 0 0% 100%;
+
+  /* Typography */
+  --text-main: 210 40% 98%;
+  --text-muted: 215 20% 65%;
+
+  /* Status Colors */
+  --danger: 0 84% 60%;
+  --success: 142 71% 45%;
+  --warning: 30 90% 50%;
+
+  /* Refined Spacing & Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: hsl(var(--background));
+  color: hsl(var(--text-main));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Improved Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--text-muted));
+}
