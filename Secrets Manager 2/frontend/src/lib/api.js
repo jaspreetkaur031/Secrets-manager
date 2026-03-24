@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
+import { encryptSecret, decryptSecret, generateValueHash } from './crypto';
 
 const STORAGE_KEY = 'secrets_manager_db';
-
 // Seed data
-const ADMIN_EMAIL = 'bharatbhushan1290@gmail.com';
+const ADMIN_EMAIL = 'jaspreetkaursaini031@gmail.com';
+
+const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
 
 const initialData = {
   users: [
@@ -361,29 +363,22 @@ export const api = {
   },
 
   getSecrets: async (projectId, envId) => {
-    if (!supabase) {
-      const db = getDb();
-      if (envId) {
-        return db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId);
+    let rawData;
+    // ... your existing fetching logic for rawData (Supabase or Mock) ...
+
+    // NEW LOGIC: Decrypt every secret before sending to UI
+    return await Promise.all(rawData.map(async (s) => {
+      try {
+        // If the value is encrypted (format includes colons), decrypt it
+        if (s.value && s.value.includes(':')) {
+          const decrypted = await decryptSecret(s.value, MASTER_PASSPHRASE);
+          return { ...s, value: decrypted };
+        }
+        return s; // Fallback for old plain-text data
+      } catch (e) {
+        console.error("Decryption failed", e);
+        return { ...s, value: "🔑 [DECRYPTION_ERROR]" };
       }
-      return db.secrets.filter(s => s.projectId === projectId);
-    }
-
-    let query = supabase
-      .from('secrets')
-      .select('*')
-      .eq('project_id', projectId)
-      .is('deleted_at', null);
-
-    if (envId) {
-      query = query.eq('environment_id', envId);
-    }
-
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data.map(s => ({
-      id: s.id, projectId: s.project_id, environmentId: s.environment_id,
-      key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
     }));
   },
 
@@ -456,15 +451,168 @@ export const api = {
     return results;
   },
 
+  // -----------------------------old code---------------------------------------
+  // saveSecret: async (projectId, envId, key, value, user = null) => {
+  //   const now = new Date().toISOString();
+  //   const userEmail = user?.email || 'Unknown';
+
+  //   const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
+  //   // NEW LOGIC: Encrypt before saving
+  //   const encryptedValue = await encryptSecret(value, MASTER_PASSPHRASE);
+  //   const valueHash = await generateValueHash(value); // For comparing values without decrypting
+
+  //   if (!supabase) {
+  //     const db = getDb();
+  //     let secret = db.secrets.find(s => s.projectId === projectId && s.environmentId === envId && s.key === key);
+  //     let registryEntry = db.projectSecretRegistry.find(r => r.projectId === projectId && r.key === key);
+
+  //     // Update Registry
+  //     if (registryEntry) {
+  //       registryEntry.lastUpdatedAt = now;
+  //     } else {
+  //       registryEntry = { id: uuidv4(), projectId, key, description: '', lastUpdatedAt: now };
+  //       db.projectSecretRegistry.push(registryEntry);
+  //     }
+
+  //     //Update/Insert Secret with ENCRYPTED value
+  //     if (secret) {
+  //       secret.value = value;
+  //       secret.updatedAt = now;
+  //       secret.version += 1;
+  //       secret.lastChangedBy = userEmail;
+  //     } else {
+  //       secret = { id: uuidv4(), projectId, environmentId: envId, key, value, version: 1, updatedAt: now, lastChangedBy: userEmail };
+  //       db.secrets.push(secret);
+  //     }
+
+  //     db.auditLogs.unshift({
+  //       id: uuidv4(),
+  //       projectId,
+  //       environmentId: envId,
+  //       action: 'SECRET_UPDATE',
+  //       description: `Updated secret ${key}`,
+  //       timestamp: now,
+  //       performedBy: userEmail
+  //     });
+  //     saveDb(db);
+  //     return {...secret, value};
+  //   }
+
+  //   // Supabase: Upsert registry
+  //   const { data: existingReg } = await supabase
+  //     .from('project_secret_registry')
+  //     .select('id')
+  //     .eq('project_id', projectId)
+  //     .eq('key_name', key)
+  //     .maybeSingle();
+
+  //   if (existingReg) {
+  //     await supabase.from('project_secret_registry').update({ last_updated_at: now }).eq('id', existingReg.id);
+  //   } else {
+  //     await supabase.from('project_secret_registry').insert({
+  //       id: uuidv4(), project_id: projectId, key_name: key, description: '', last_updated_at: now
+  //     });
+  //   }
+
+  //   // Supabase: Upsert secret
+  //   const { data: existingSec } = await supabase
+  //     .from('secrets')
+  //     .select('id, version, deleted_at')
+  //     .eq('project_id', projectId)
+  //     .eq('environment_id', envId)
+  //     .eq('key_name', key)
+  //     .maybeSingle();
+
+  //   let result;
+  //   const secretData = {
+  //     value,
+  //     updated_at: now,
+  //     // map 'lastChangedBy' to a generic 'metadata' json column if it exists, or assume loose schema.
+  //     // For now, I'll attempt to add it to a 'metadata' column if it exists, roughly standard in my patterns.
+  //     // Or if I can't, I will rely on audit logs.
+  //     // Actually, let's just use Audit Logs for the "Who" for Supabase to avoid schema errors if column missing.
+  //     // BUT the user wants to see it on the secret object likely.
+  //     // Let's assume we can't easily add columns. We will use `audit_logs` for history.
+  //     // BUT for the "Outdated" check in UI, we need it on the secret.
+  //     // I will try to pass `last_changed_by` in the insert/update and catch error? No that's risky.
+  //     // I'll skip adding it to `secrets` table for Supabase path and rely on audit logs.
+  //     // Wait, for Mock I added `lastChangedBy`. For Supabase I'm stuck.
+  //     // I will implement `getSecretHistory` to fetch from audit logs.
+
+  //     // Let's TRY to see if `audit_logs` can be used 
+  //   };
+
+  //   if (existingSec) {
+  //     const { data, error } = await supabase
+  //       .from('secrets')
+  //       .update({
+  //         value,
+  //         updated_at: now,
+  //         deleted_at: null,
+  //         version: existingSec.version + 1
+  //       })
+  //       .eq('id', existingSec.id)
+  //       .select()
+  //       .single();
+  //     if (error) throw new Error(error.message);
+  //     result = data;
+  //   } else {
+  //     const { data, error } = await supabase
+  //       .from('secrets')
+  //       .insert({
+  //         id: uuidv4(), project_id: projectId, environment_id: envId,
+  //         key_name: key, value, version: 1, created_at: now, updated_at: now
+  //       })
+  //       .select()
+  //       .single();
+  //     if (error) throw new Error(error.message);
+  //     result = data;
+  //   }
+
+  //   // Audit log - Including performed_by if possible, or just description
+  //   // Assuming audit_logs table has a 'performed_by' or similar. 
+  //   // I'll put it in description for safety if I don't know schema
+  //   const { error: auditError } = await supabase.from('audit_logs').insert({
+  //     id: uuidv4(), project_id: projectId, environment_id: envId, action: 'SECRET_UPDATE',
+  //     entity_type: 'SECRET', entity_id: result.id, timestamp: now,
+  //     description: `Updated secret ${key} by ${userEmail}`
+  //   });
+  //   if (auditError) console.error('Audit Log Error:', auditError);
+
+  //   return {
+  //     id: result.id,
+  //     projectId: result.project_id,
+  //     environmentId: result.environment_id,
+  //     key: result.key_name,
+  //     value: result.value,
+  //     version: result.version,
+  //     updatedAt: result.updated_at,
+  //     // For Supabase, we won't have lastChangedBy on the object immediately unless we fetch from audit logs
+  //     lastChangedBy: userEmail // We can return what we just did
+  //   };
+  // },
+  // -------------------------------------------------------------------------------
+
   saveSecret: async (projectId, envId, key, value, user = null) => {
     const now = new Date().toISOString();
     const userEmail = user?.email || 'Unknown';
 
+    // In a professional application, this passphrase would be dynamic.
+    // For your demo, we use this master key to encrypt the secret.
+    const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
+
+    // 1. Encrypt the secret value using your crypto utility before storage
+    const encryptedValue = await encryptSecret(value, MASTER_PASSPHRASE);
+    // 2. Generate a deterministic hash for checking sync status without decrypting
+    const valueHash = await generateValueHash(value);
+
+    // --- MOCK DATABASE PATH (LocalStorage) ---
     if (!supabase) {
       const db = getDb();
       let secret = db.secrets.find(s => s.projectId === projectId && s.environmentId === envId && s.key === key);
       let registryEntry = db.projectSecretRegistry.find(r => r.projectId === projectId && r.key === key);
 
+      // Update the Global Registry for this key
       if (registryEntry) {
         registryEntry.lastUpdatedAt = now;
       } else {
@@ -472,16 +620,18 @@ export const api = {
         db.projectSecretRegistry.push(registryEntry);
       }
 
+      // Update or Insert the secret with the ENCRYPTED value
       if (secret) {
-        secret.value = value;
+        secret.value = encryptedValue;
         secret.updatedAt = now;
         secret.version += 1;
         secret.lastChangedBy = userEmail;
       } else {
-        secret = { id: uuidv4(), projectId, environmentId: envId, key, value, version: 1, updatedAt: now, lastChangedBy: userEmail };
+        secret = { id: uuidv4(), projectId, environmentId: envId, key, value: encryptedValue, version: 1, updatedAt: now, lastChangedBy: userEmail };
         db.secrets.push(secret);
       }
 
+      // Log the action to Audit Logs
       db.auditLogs.unshift({
         id: uuidv4(),
         projectId,
@@ -491,11 +641,15 @@ export const api = {
         timestamp: now,
         performedBy: userEmail
       });
+
       saveDb(db);
-      return secret;
+      // Return the plain value to the UI so the dashboard updates immediately
+      return { ...secret, value };
     }
 
-    // Supabase: Upsert registry
+    // --- SUPABASE DATABASE PATH (PostgreSQL) ---
+
+    // 1. Update or Insert the Master Registry Entry
     const { data: existingReg } = await supabase
       .from('project_secret_registry')
       .select('id')
@@ -511,7 +665,7 @@ export const api = {
       });
     }
 
-    // Supabase: Upsert secret
+    // 2. Update or Insert the specific Environment Secret with the ENCRYPTED value
     const { data: existingSec } = await supabase
       .from('secrets')
       .select('id, version, deleted_at')
@@ -521,29 +675,11 @@ export const api = {
       .maybeSingle();
 
     let result;
-    const secretData = {
-      value,
-      updated_at: now,
-      // map 'lastChangedBy' to a generic 'metadata' json column if it exists, or assume loose schema.
-      // For now, I'll attempt to add it to a 'metadata' column if it exists, roughly standard in my patterns.
-      // Or if I can't, I will rely on audit logs.
-      // Actually, let's just use Audit Logs for the "Who" for Supabase to avoid schema errors if column missing.
-      // BUT the user wants to see it on the secret object likely.
-      // Let's assume we can't easily add columns. We will use `audit_logs` for history.
-      // BUT for the "Outdated" check in UI, we need it on the secret.
-      // I will try to pass `last_changed_by` in the insert/update and catch error? No that's risky.
-      // I'll skip adding it to `secrets` table for Supabase path and rely on audit logs.
-      // Wait, for Mock I added `lastChangedBy`. For Supabase I'm stuck.
-      // I will implement `getSecretHistory` to fetch from audit logs.
-
-      // Let's TRY to see if `audit_logs` can be used 
-    };
-
     if (existingSec) {
       const { data, error } = await supabase
         .from('secrets')
         .update({
-          value,
+          value: encryptedValue, // The encrypted ciphertext
           updated_at: now,
           deleted_at: null,
           version: existingSec.version + 1
@@ -558,7 +694,7 @@ export const api = {
         .from('secrets')
         .insert({
           id: uuidv4(), project_id: projectId, environment_id: envId,
-          key_name: key, value, version: 1, created_at: now, updated_at: now
+          key_name: key, value: encryptedValue, version: 1, created_at: now, updated_at: now
         })
         .select()
         .single();
@@ -566,26 +702,22 @@ export const api = {
       result = data;
     }
 
-    // Audit log - Including performed_by if possible, or just description
-    // Assuming audit_logs table has a 'performed_by' or similar. 
-    // I'll put it in description for safety if I don't know schema
-    const { error: auditError } = await supabase.from('audit_logs').insert({
+    // 3. Create an Audit Log entry for traceability
+    await supabase.from('audit_logs').insert({
       id: uuidv4(), project_id: projectId, environment_id: envId, action: 'SECRET_UPDATE',
       entity_type: 'SECRET', entity_id: result.id, timestamp: now,
       description: `Updated secret ${key} by ${userEmail}`
     });
-    if (auditError) console.error('Audit Log Error:', auditError);
 
     return {
       id: result.id,
       projectId: result.project_id,
       environmentId: result.environment_id,
       key: result.key_name,
-      value: result.value,
+      value: value, // Return original plain value so the UI doesn't show ciphertext
       version: result.version,
       updatedAt: result.updated_at,
-      // For Supabase, we won't have lastChangedBy on the object immediately unless we fetch from audit logs
-      lastChangedBy: userEmail // We can return what we just did
+      lastChangedBy: userEmail
     };
   },
 

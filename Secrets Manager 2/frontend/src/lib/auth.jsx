@@ -9,6 +9,12 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useLocation();
 
+    /** * NEW STATE: projectPassphrases
+     * This stores your master keys in the browser's RAM only.
+     * Format: { "project-uuid-1": "user-typed-passphrase" }
+     */
+    const [projectPassphrases, setProjectPassphrases] = useState({});
+
     useEffect(() => {
         checkSession();
     }, []);
@@ -31,7 +37,6 @@ export function AuthProvider({ children }) {
     const login = async (email) => {
         try {
             const { user, sessionToken } = await api.login(email);
-            // Stateless session token
             localStorage.setItem('sm_session_token', sessionToken);
             setUser(user);
             setLocation('/');
@@ -41,18 +46,35 @@ export function AuthProvider({ children }) {
         }
     };
 
-
-
-
     const logout = async () => {
-        // Stateless, just clear local token
         localStorage.removeItem('sm_session_token');
         setUser(null);
+        // Clear passphrases on logout for security
+        setProjectPassphrases({});
         setLocation('/login');
     };
 
+    /**
+     * NEW FUNCTION: setPassphrase
+     * Allows components to "unlock" a project by providing its key.
+     */
+    const setPassphrase = (projectId, phrase) => {
+        setProjectPassphrases(prev => ({
+            ...prev,
+            [projectId]: phrase
+        }));
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoading: loading }}>
+        <AuthContext.Provider value={{
+            user,
+            login,
+            logout,
+            isLoading: loading,
+            // Exporting the new state and setter
+            projectPassphrases,
+            setPassphrase
+        }}>
             {!loading && children}
         </AuthContext.Provider>
     );
