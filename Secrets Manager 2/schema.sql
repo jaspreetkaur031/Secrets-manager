@@ -29,18 +29,6 @@ CREATE TABLE projects (
     updated_at TIMESTAMPTZ NOT NULL,
     deleted_at TIMESTAMPTZ 
 );
-
-CREATE TABLE project_members (
-    project_id UUID NOT NULL REFERENCES projects(id),
-    user_id UUID REFERENCES users(id), -- Nullable for invites
-    invite_email TEXT, -- For pending invites
-    status TEXT DEFAULT 'ACTIVE', -- 'ACTIVE', 'INVITED'
-    environments JSONB DEFAULT '[]'::jsonb, -- Denormalized permissions: ["env_id_1", "env_id_2"]
-    has_permission BOOLEAN NOT NULL DEFAULT TRUE,
-    joined_at TIMESTAMPTZ, -- Nullable if just invited? Or use as created_at
-    invited_at TIMESTAMPTZ,
-    PRIMARY KEY (project_id, user_id) -- Wait, if user_id is null, this PK fails.
-);
 -- We need to adjust PK. If user_id is null, we can't use it in PK.
 -- Valid PK alternatives:
 -- A: Surrogate ID (id UUID PRIMARY KEY) - Current schema has no ID column on project_members?
@@ -53,7 +41,7 @@ CREATE TABLE project_members (
 CREATE TABLE project_members (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id),
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(id), -- Nullable for invites
     invite_email TEXT,
     status TEXT DEFAULT 'ACTIVE',
     environments JSONB DEFAULT '[]'::jsonb,

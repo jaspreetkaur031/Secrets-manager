@@ -1,9 +1,19 @@
 // src/lib/crypto.js
 
 /**
+ * Generates a deterministic SHA-256 hash of a value.
+ * Used for comparing secrets across environments without decrypting them.
+ */
+export async function generateValueHash(plainText) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(plainText);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Derives a cryptographic key from a project passphrase.
- * In a real Doppler-like app, this passphrase would be stored 
- * securely or entered by the user during their session.
  */
 async function deriveKey(passphrase, salt) {
     const encoder = new TextEncoder();
@@ -31,7 +41,6 @@ async function deriveKey(passphrase, salt) {
 
 /**
  * Encrypts a secret value using AES-GCM.
- * Returns a string formatted as "salt:iv:ciphertext" (base64 encoded).
  */
 export async function encryptSecret(plainText, projectPassphrase) {
     const encoder = new TextEncoder();
@@ -46,7 +55,6 @@ export async function encryptSecret(plainText, projectPassphrase) {
         encoder.encode(plainText)
     );
 
-    // Combine components for storage
     return `${btoa(String.fromCharCode(...salt))}:${btoa(String.fromCharCode(...iv))}:${btoa(String.fromCharCode(...new Uint8Array(encrypted)))}`;
 }
 
