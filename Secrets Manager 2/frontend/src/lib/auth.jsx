@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
             const { user, sessionToken } = await api.login(email);
             localStorage.setItem('sm_session_token', sessionToken);
             setUser(user);
-            setLocation('/');
+            setLocation('/projects');
             return { success: true };
         } catch (e) {
             return { success: false, error: e.message };
