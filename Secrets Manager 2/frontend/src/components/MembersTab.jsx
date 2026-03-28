@@ -109,7 +109,7 @@ export function MembersTab({ project, isAdmin }) {
                                         </span>
                                     )}
                                 </td>
-                                <td>
+                                {/* <td>
                                     <div className="flex flex-wrap gap-2">
                                         {member.environments.map(envId => {
                                             const env = project.environments.find(e => e.id === envId);
@@ -120,6 +120,23 @@ export function MembersTab({ project, isAdmin }) {
                                             ) : null;
                                         })}
                                         {member.environments.length === 0 && <span className="text-gray-500 text-xs italic">No access</span>}
+                                    </div>
+                                </td> */}
+
+                                <td>
+                                    <div className="flex flex-wrap gap-2">
+                                        {/* Added (member.environments || []) to prevent the crash */}
+                                        {(member.environments || []).map(envId => {
+                                            const env = project.environments.find(e => e.id === envId);
+                                            return env ? (
+                                                <span key={envId} className="px-2 py-0.5 rounded text-xs border border-gray-700 bg-gray-800 text-gray-300">
+                                                    {env.name}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                        {(!member.environments || member.environments.length === 0) && (
+                                            <span className="text-gray-500 text-xs italic">No access</span>
+                                        )}
                                     </div>
                                 </td>
                                 {isAdmin && (
