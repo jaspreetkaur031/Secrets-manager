@@ -1,0 +1,50 @@
+/* Settings Page Styles */
+.settings-page {
+  /* Custom styles can be added here if needed */
+}
+
+/* Tab navigation styles are handled by Tailwind classes */
+/* Form styles are handled by component classes */
+/* Theme toggle animations */
+.theme-option {
+  transition: all 0.2s ease-in-out;
+}
+
+.theme-option:hover {
+  transform: translateY(-1px);
+}
+
+/* Notification toggle animations */
+.toggle-slider {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Password visibility toggle */
+.password-toggle {
+  transition: color 0.2s ease-in-out;
+}
+
+.password-toggle:hover {
+  color: #ffffff;
+}
+
+/* Settings sections */
+.settings-section {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logout section warning styling */
+.logout-section {
+  border-left: 4px solid #dc2626;
+}

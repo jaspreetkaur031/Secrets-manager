@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
 import CompareSecrets from './pages/CompareSecrets';
 import SearchPage from './pages/SearchPage';
+import Settings from './pages/Settings';
 import Login from './pages/Login';
 
 /**
@@ -52,6 +53,7 @@ function App() {
         <ProtectedRoute path="/project/:slug" component={ProjectView} />
         <ProtectedRoute path="/project/:slug/compare" component={CompareSecrets} />
         <ProtectedRoute path="/search" component={SearchPage} />
+        <ProtectedRoute path="/settings" component={Settings} />
 
         {/* --- 404 Handler --- */}
         <Route>

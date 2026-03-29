@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useParams } from 'wouter';
 import { ArrowLeft, CheckCircle, RefreshCw, Eye, EyeOff, Loader2, Copy, Check, Lock, AlertCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -8,10 +8,19 @@ import { Input } from '../components/ui/Input';
 import { cn } from '../lib/utils';
 import './CompareSecrets.css';
 
-export default function CompareSecrets({ params }) {
+export default function CompareSecrets() {
     const { user } = useAuth();
     const [, setLocation] = useLocation();
+    const params = useParams();
     const slug = params?.slug;
+
+    // Redirect if no slug provided
+    useEffect(() => {
+        if (!slug) {
+            setLocation('/dashboard');
+            return;
+        }
+    }, [slug, setLocation]);
 
     // Data State
     const [project, setProject] = useState(null);
@@ -34,21 +43,35 @@ export default function CompareSecrets({ params }) {
     const isAdmin = user?.isAdmin || user?.is_admin;
 
     const loadProjectData = useCallback(async () => {
+        if (!user) {
+            setError("You must be logged in to access this page");
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
-            const p = await api.getProject(slug);
-            if (!p) throw new Error("Project not found");
+            const p = await api.getProject(slug, user.id, isAdmin);
+            if (!p) {
+                throw new Error("Project not found or you don't have permission to access it");
+            }
+
+            // Check if user has access to at least one environment
+            if (!isAdmin && (!p.environments || p.environments.length === 0)) {
+                throw new Error("You don't have permission to access this project");
+            }
+
             setProject(p);
-            setEnvironments(p.environments);
+            setEnvironments(p.environments || []);
 
             const r = await api.getSecretRegistry(p.id);
-            setRegistry(r);
+            setRegistry(r || {});
         } catch (e) {
             setError(e.message);
         } finally {
             setLoading(false);
         }
-    }, [slug]);
+    }, [slug, user, isAdmin]);
 
     useEffect(() => {
         if (slug) loadProjectData();
@@ -68,33 +91,42 @@ export default function CompareSecrets({ params }) {
         if (project && selectedKey) {
             fetchComparison();
         }
-    }, [project, selectedKey, fetchComparison]);
+    }, [project, selectedKey, environments]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchComparison = useCallback(async () => {
-        if (!selectedKey) return;
+        if (!selectedKey || !project) return;
+
         setComparing(true);
         try {
             // Fetch values across all environments
             const values = await api.getSecretKeyValues(project.id, selectedKey);
+
+            if (!Array.isArray(values)) {
+                throw new Error("Invalid response from server");
+            }
 
             // Find "Source of Truth" (Latest Updated)
             let maxDate = 0;
             let latestValue = null;
 
             values.forEach(v => {
-                const d = new Date(v.updatedAt).getTime();
-                if (d > maxDate) {
-                    maxDate = d;
-                    latestValue = v.value;
+                if (v.updatedAt) {
+                    const d = new Date(v.updatedAt).getTime();
+                    if (d > maxDate) {
+                        maxDate = d;
+                        latestValue = v.value;
+                    }
                 }
             });
 
             // Build comparison rows
             const rows = environments.map(env => {
+                if (!env || !env.id) return null;
+
                 const secretData = values.find(v => v.environmentId === env.id);
 
                 let status = 'missing';
-                if (secretData) {
+                if (secretData && secretData.value !== undefined) {
                     status = secretData.value === latestValue ? 'synced' : 'outdated';
                 }
 
@@ -103,30 +135,37 @@ export default function CompareSecrets({ params }) {
                     value: secretData ? secretData.value : null,
                     updatedAt: secretData ? secretData.updatedAt : null,
                     status,
-                    isLatest: secretData && new Date(secretData.updatedAt).getTime() === maxDate
+                    isLatest: secretData && secretData.updatedAt && new Date(secretData.updatedAt).getTime() === maxDate
                 };
-            });
+            }).filter(Boolean); // Remove null entries
 
             setComparisonData(rows);
             setRevealed({}); // Reset reveals on new key
         } catch (e) {
-            setError(e.message);
+            console.error('Error fetching comparison:', e);
+            setError(e.message || "Failed to load secret comparison");
         } finally {
             setComparing(false);
         }
     }, [project, selectedKey, environments]);
 
     const handleSync = async (targetEnvId) => {
+        if (!project || !selectedKey || !user) return;
+
         // Find the "Latest" value from comparisonData
         const sourceRow = comparisonData.find(row => row.isLatest);
-        if (!sourceRow || !sourceRow.value) return;
+        if (!sourceRow || !sourceRow.value) {
+            setError("No source value found to sync from");
+            return;
+        }
 
         try {
-            setComparing(true); // show loading
+            setComparing(true);
             await api.saveSecret(project.id, targetEnvId, selectedKey, sourceRow.value, user);
             await fetchComparison(); // Refresh
         } catch (e) {
-            setError(e.message);
+            console.error('Error syncing secret:', e);
+            setError(e.message || "Failed to sync secret");
             setComparing(false);
         }
     };
@@ -263,18 +302,18 @@ export default function CompareSecrets({ params }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-800">
-                                {comparisonData.map((row) => (
-                                    <tr key={row.env.id} className="hover:bg-gray-800/30 transition-colors group">
+                                {comparisonData.length > 0 ? comparisonData.map((row) => (
+                                    <tr key={row.env?.id || Math.random()} className="hover:bg-gray-800/30 transition-colors group">
                                         <td className="px-8 py-5">
                                             <div className="flex items-center">
                                                 <div className={cn(
                                                     "w-2 h-8 rounded-full mr-4",
-                                                    row.env.isProduction ? "bg-purple-500" :
-                                                        row.env.slug === 'staging' ? "bg-orange-500" : "bg-blue-500"
+                                                    row.env?.isProduction ? "bg-purple-500" :
+                                                        row.env?.slug === 'staging' ? "bg-orange-500" : "bg-blue-500"
                                                 )}></div>
                                                 <div>
-                                                    <span className="font-semibold text-gray-200 block text-base">{row.env.name}</span>
-                                                    <span className="text-xs text-gray-500 uppercase tracking-wider">{row.env.slug}</span>
+                                                    <span className="font-semibold text-gray-200 block text-base">{row.env?.name || 'Unknown'}</span>
+                                                    <span className="text-xs text-gray-500 uppercase tracking-wider">{row.env?.slug || ''}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -332,7 +371,7 @@ export default function CompareSecrets({ params }) {
                                             )}
                                         </td>
                                         <td className="px-8 py-5 text-right">
-                                            {(row.status === 'outdated' || row.status === 'missing') && isAdmin && (
+                                            {(row.status === 'outdated' || row.status === 'missing') && isAdmin && row.env?.id && (
                                                 <Button
                                                     size="sm"
                                                     className="bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-900/20"
@@ -344,7 +383,7 @@ export default function CompareSecrets({ params }) {
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                )) : null}
                             </tbody>
                         </table>
                     </div>
