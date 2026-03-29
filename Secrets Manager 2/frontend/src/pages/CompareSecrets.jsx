@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowLeft, CheckCircle, RefreshCw, Eye, EyeOff, Loader2, Copy, Check, Lock, AlertCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
@@ -33,9 +33,26 @@ export default function CompareSecrets({ params }) {
 
     const isAdmin = user?.isAdmin || user?.is_admin;
 
+    const loadProjectData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const p = await api.getProject(slug);
+            if (!p) throw new Error("Project not found");
+            setProject(p);
+            setEnvironments(p.environments);
+
+            const r = await api.getSecretRegistry(p.id);
+            setRegistry(r);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [slug]);
+
     useEffect(() => {
         if (slug) loadProjectData();
-    }, [slug]);
+    }, [slug, loadProjectData]);
 
     // Parse query params for initial key selection
     useEffect(() => {
@@ -51,26 +68,9 @@ export default function CompareSecrets({ params }) {
         if (project && selectedKey) {
             fetchComparison();
         }
-    }, [project, selectedKey]);
+    }, [project, selectedKey, fetchComparison]);
 
-    const loadProjectData = async () => {
-        try {
-            setLoading(true);
-            const p = await api.getProject(slug);
-            if (!p) throw new Error("Project not found");
-            setProject(p);
-            setEnvironments(p.environments);
-
-            const r = await api.getSecretRegistry(p.id);
-            setRegistry(r);
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchComparison = async () => {
+    const fetchComparison = useCallback(async () => {
         if (!selectedKey) return;
         setComparing(true);
         try {
@@ -114,7 +114,7 @@ export default function CompareSecrets({ params }) {
         } finally {
             setComparing(false);
         }
-    };
+    }, [project, selectedKey, environments]);
 
     const handleSync = async (targetEnvId) => {
         // Find the "Latest" value from comparisonData

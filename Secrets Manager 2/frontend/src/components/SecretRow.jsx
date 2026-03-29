@@ -21,7 +21,6 @@ export function SecretRow({
 }) {
     // Local state for UI only
     const [isRevealed, setIsRevealed] = useState(false);
-    const [isFocused, setIsFocused] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
 
     // Controlled value (from parent drafts) or secret.value
@@ -89,10 +88,9 @@ export function SecretRow({
                                     value={displayValue}
                                     onChange={(e) => onChange(secret.id, e.target.value)}
                                     onFocus={() => {
-                                        setIsFocused(true);
                                         setIsRevealed(true);
                                     }}
-                                    onBlur={() => setIsFocused(false)}
+                                    onBlur={() => {}}
                                     spellCheck={false}
                                     placeholder="Empty value"
                                 />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import {
     Plus, CheckCircle, Eye, EyeOff, Lock, RefreshCw, Copy, FolderPlus,
@@ -34,8 +34,6 @@ export default function ProjectView({ params }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
-    const [revealed, setRevealed] = useState({});
-    const [copied, setCopied] = useState(null);
 
     // Secret Modal State
     const [isSecretModalOpen, setIsSecretModalOpen] = useState(false);
@@ -69,19 +67,7 @@ export default function ProjectView({ params }) {
     const slug = params?.slug;
     const isAdmin = user?.isAdmin || user?.is_admin;
 
-
-
-    // Guard: No slug means component rendered without proper params
-    if (!slug) {
-        return (
-            <div className="pv-loading">
-                <Loader2 className="animate-spin" size={32} />
-                <span>Loading...</span>
-            </div>
-        );
-    }
-
-    const loadProject = async () => {
+    const loadProject = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -99,9 +85,9 @@ export default function ProjectView({ params }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [slug, user?.id, isAdmin, currentEnvId]);
 
-    const loadSecrets = async () => {
+    const loadSecrets = useCallback(async () => {
         if (!project || !currentEnvId) return;
         try {
             const [s, r] = await Promise.all([
@@ -114,10 +100,9 @@ export default function ProjectView({ params }) {
         } catch (e) {
             setError(e.message);
         }
-    }
+    }, [project, currentEnvId]);
 
-
-    const loadLogs = async () => {
+    const loadLogs = useCallback(async () => {
         if (!project || !currentEnvId) return;
         try {
             // Fetch logs for this environment
@@ -126,12 +111,12 @@ export default function ProjectView({ params }) {
         } catch (e) {
             setError(e.message);
         }
-    };
+    }, [project, currentEnvId]);
 
     // Fetch Project
     useEffect(() => {
         if (slug) loadProject();
-    }, [slug]);
+    }, [slug, loadProject]);
 
     // Fetch Secrets when Env changes
     useEffect(() => {
@@ -142,7 +127,17 @@ export default function ProjectView({ params }) {
                 loadLogs();
             }
         }
-    }, [project, currentEnvId, activeSection]);
+    }, [project, currentEnvId, activeSection, loadSecrets, loadLogs]);
+
+    // Guard: No slug means component rendered without proper params
+    if (!slug) {
+        return (
+            <div className="pv-loading">
+                <Loader2 className="animate-spin" size={32} />
+                <span>Loading...</span>
+            </div>
+        );
+    }
 
     const handleEnvChange = (envId) => {
         if (Object.keys(drafts).length > 0 || Object.keys(descDrafts).length > 0) {
@@ -151,7 +146,6 @@ export default function ProjectView({ params }) {
             }
         }
         setCurrentEnvId(envId);
-        setRevealed({});
         setDrafts({});
         setDescDrafts({});
     };
@@ -160,49 +154,11 @@ export default function ProjectView({ params }) {
         setActiveSection(section);
     };
 
-    const toggleReveal = (id) => {
-        setRevealed(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
     const copyToClipboard = async (id, value) => {
         try {
             await navigator.clipboard.writeText(value);
-            setCopied(id);
-            setTimeout(() => setCopied(null), 2000);
         } catch (e) {
             console.error('Copy failed:', e);
-        }
-    };
-
-    const getSyncStatus = (secret) => {
-        const globalEntry = registry[secret.key];
-        if (!globalEntry) return 'synced';
-        const localTime = new Date(secret.updatedAt).getTime();
-        const globalTime = new Date(globalEntry.lastUpdatedAt).getTime();
-
-        if (localTime >= globalTime) return 'synced';
-
-        // Value check: if value matches the latest secret's value, it is synced
-        const latestSecret = allSecrets
-            .filter(s => s.key === secret.key)
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-
-        if (latestSecret && latestSecret.value === secret.value) {
-            return 'synced';
-        }
-
-        return 'outdated';
-    };
-
-    const handleSyncSecret = async (secretId) => {
-        try {
-            setSaving(true);
-            await api.syncSecret(secretId);
-            await loadSecrets();
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setSaving(false);
         }
     };
 

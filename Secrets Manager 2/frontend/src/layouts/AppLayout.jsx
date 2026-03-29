@@ -8,7 +8,7 @@ import './AppLayout.css';
 import { useAuth } from '../lib/auth'; // Import useAuth
 
 export function AppLayout({ children }) {
-    const [location, setLocation] = useLocation();
+    const location = useLocation();
     const { logout, user } = useAuth();
 
     // Global Key Listener for Cmd+K

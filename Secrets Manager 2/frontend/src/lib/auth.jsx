@@ -7,7 +7,7 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [location, setLocation] = useLocation();
+    const [, setLocation] = useLocation();
 
     /** * NEW STATE: projectPassphrases
      * This stores your master keys in the browser's RAM only.

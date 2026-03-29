@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
 import { Loader2, Folder, Key, ArrowRight, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { Link } from 'wouter';
@@ -8,7 +7,6 @@ import { Button } from '../components/ui/Button';
 import './SearchPage.css';
 
 export default function SearchPage() {
-    const [location, setLocation] = useLocation();
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q') || '';
 
@@ -73,10 +71,10 @@ export default function SearchPage() {
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => setLocation(`/project/${p.slug}`)}
+                                            asChild
                                             className="card-action"
                                         >
-                                            View Project
+                                            <Link href={`/project/${p.slug}`}>View Project</Link>
                                         </Button>
                                     </div>
                                 ))}
@@ -120,12 +118,11 @@ export default function SearchPage() {
                                                 </td>
                                                 <td className="action-cell">
                                                     {s.usedIn.length > 0 && (
-                                                        <button
-                                                            className="compare-btn"
-                                                            onClick={() => setLocation(`/project/${s.usedIn[0].slug}/compare`)}
-                                                        >
-                                                            Compare <ArrowRight size={14} />
-                                                        </button>
+                                                        <Link href={`/project/${s.usedIn[0].slug}/compare`}>
+                                                            <button className="compare-btn">
+                                                                Compare <ArrowRight size={14} />
+                                                            </button>
+                                                        </Link>
                                                     )}
                                                 </td>
                                             </tr>

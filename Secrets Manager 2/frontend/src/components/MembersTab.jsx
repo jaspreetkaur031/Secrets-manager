@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Shield, Trash2, Mail, CheckCircle, ExternalLink, Plus, Edit2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -15,21 +15,21 @@ export function MembersTab({ project, isAdmin }) {
     // Edit/Invite State
     const [editingMember, setEditingMember] = useState(null); // If set, we are editing permissions
 
-    useEffect(() => {
-        loadMembers();
-    }, [project.id]);
-
-    const loadMembers = async () => {
+    const loadMembers = useCallback(async () => {
         try {
             setLoading(true);
             const data = await api.getProjectMembers(project.id);
             setMembers(data);
-        } catch (e) {
+        } catch {
             setError("Failed to load members");
         } finally {
             setLoading(false);
         }
-    };
+    }, [project.id]);
+
+    useEffect(() => {
+        loadMembers();
+    }, [loadMembers]);
 
     const handleRemoveMember = async (memberId) => {
         if (!confirm("Are you sure you want to remove this user from the project?")) return;

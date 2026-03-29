@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
-import { encryptSecret, decryptSecret, generateValueHash } from './crypto';
+import { encryptSecret, decryptSecret } from './crypto';
 
 const STORAGE_KEY = 'secrets_manager_db';
 // Seed data
@@ -73,7 +73,7 @@ export const api = {
     // 2. Insert User (admin check)
     const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     const userId = uuidv4();
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
       .insert({
         id: userId,
@@ -144,7 +144,7 @@ export const api = {
 
       // Normalize isAdmin field
       return { user: { ...user, isAdmin: user.isAdmin || user.is_admin }, sessionToken };
-    } catch (e) {
+    } catch {
       throw new Error('Invalid session');
     }
   },
@@ -205,7 +205,7 @@ export const api = {
       if (!user) throw new Error('User not found');
 
       return { user, sessionToken };
-    } catch (e) {
+    } catch {
       throw new Error('Invalid session (Mock)');
     }
   },
@@ -321,7 +321,7 @@ export const api = {
     // 3. Filter if not admin
     if (!isAdmin && userId) {
       // Fetch member permissions
-      const { data: member, error: memberError } = await supabase
+      const { data: member } = await supabase
         .from('project_members')
         .select('environments')
         .eq('project_id', project.id)
@@ -362,21 +362,58 @@ export const api = {
     return { id: data.id, projectId: data.project_id, name: data.display_name, slug: data.slug, parentId: data.parent_id };
   },
 
-  getSecrets: async (projectId, envId) => {
-    let rawData;
-    // ... your existing fetching logic for rawData (Supabase or Mock) ...
+  // ------------------------------------------------------------
+  // getSecrets: async (projectId, envId) => {
+  //   let rawData;
+  //   // ... your existing fetching logic for rawData (Supabase or Mock) ...
 
-    // NEW LOGIC: Decrypt every secret before sending to UI
-    return await Promise.all(rawData.map(async (s) => {
+  //   // NEW LOGIC: Decrypt every secret before sending to UI
+  //   return await Promise.all(rawData.map(async (s) => {
+  //     try {
+  //       // If the value is encrypted (format includes colons), decrypt it
+  //       if (s.value && s.value.includes(':')) {
+  //         const decrypted = await decryptSecret(s.value, MASTER_PASSPHRASE);
+  //         return { ...s, value: decrypted };
+  //       }
+  //       return s; // Fallback for old plain-text data
+  //     } catch (e) {
+  //       console.error("Decryption failed", e);
+  //       return { ...s, value: "🔑 [DECRYPTION_ERROR]" };
+  //     }
+  //   }));
+  // },
+  // ----------------------------------------------------------------
+
+
+  getSecrets: async (projectId, envId, passphrase) => {
+    let data;
+    // 1. Fetch the raw (encrypted) data
+    if (!supabase) {
+      const db = getDb();
+      data = envId
+        ? db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId)
+        : db.secrets.filter(s => s.projectId === projectId);
+    } else {
+      let query = supabase.from('secrets').select('*').eq('project_id', projectId).is('deleted_at', null);
+      if (envId) query = query.eq('environment_id', envId);
+      const { data: res, error } = await query;
+      if (error) throw new Error(error.message);
+      data = res.map(s => ({
+        id: s.id, projectId: s.project_id, environmentId: s.environment_id,
+        key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
+      }));
+    }
+
+    // 2. Decrypt the values using the provided passphrase
+    return await Promise.all(data.map(async (s) => {
       try {
-        // If the value is encrypted (format includes colons), decrypt it
         if (s.value && s.value.includes(':')) {
-          const decrypted = await decryptSecret(s.value, MASTER_PASSPHRASE);
+          const decrypted = await decryptSecret(s.value, passphrase);
           return { ...s, value: decrypted };
         }
-        return s; // Fallback for old plain-text data
+        return s; // Return as-is if not in encrypted format
       } catch (e) {
-        console.error("Decryption failed", e);
+        console.error(`Decryption failed for key: ${s.key}`, e);
         return { ...s, value: "🔑 [DECRYPTION_ERROR]" };
       }
     }));
@@ -416,7 +453,6 @@ export const api = {
     const allSecrets = db.secrets.filter(s => s.projectId === projectId);
 
     // 3. Get Project Environments
-    const project = db.projects.find(p => p.id === projectId);
     const envs = db.environments.filter(e => e.projectId === projectId);
 
     // 4. Compute Status per Env per Key
@@ -604,7 +640,7 @@ export const api = {
     // 1. Encrypt the secret value using your crypto utility before storage
     const encryptedValue = await encryptSecret(value, MASTER_PASSPHRASE);
     // 2. Generate a deterministic hash for checking sync status without decrypting
-    const valueHash = await generateValueHash(value);
+    // const valueHash = await generateValueHash(value);
 
     // --- MOCK DATABASE PATH (LocalStorage) ---
     if (!supabase) {
@@ -1079,7 +1115,6 @@ export const api = {
     const { data, error } = await query.order('timestamp', { ascending: false });
     if (error) throw new Error(error.message);
     return data;
-    return data;
   },
 
   getSecretKeyValues: async (projectId, keyName) => {
@@ -1155,12 +1190,10 @@ export const api = {
       return { projects, secrets };
     }
 
-    // Supabase Implementation
-    // 1. Search Projects
     const { data: projects, error: pError } = await supabase
       .from('projects')
       .select('id, display_name, slug, description')
-      .or(`display_name.ilike.%${query}%,slug.ilike.%${query}%`)
+      .or('display_name.ilike.%query%,slug.ilike.%query%', { query })
       .is('deleted_at', null)
       .limit(10);
 

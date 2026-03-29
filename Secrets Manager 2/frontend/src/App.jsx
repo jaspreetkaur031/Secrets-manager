@@ -19,8 +19,9 @@ import Login from './pages/Login';
  * ProtectedRoute Wrapper
  * Redirects unauthenticated users to login and wraps dashboard pages in AppLayout.
  */
-function ProtectedRoute({ component: Component, path }) {
+function ProtectedRoute({ component, path }) {
   const { user } = useAuth();
+  const Component = component;
   return (
     <Route path={path}>
       {(params) => user ? (
