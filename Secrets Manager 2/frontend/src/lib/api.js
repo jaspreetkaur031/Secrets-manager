@@ -55,9 +55,11 @@ function saveDb(db) {
 }
 
 export const api = {
+
   // ---------------------------------------------------------------------------
   // Auth Methods (Supabase Integration)
   // ---------------------------------------------------------------------------
+
   signup: async (email, name) => {
     if (!supabase) return api._mockSignup(email, name);
 
@@ -1131,10 +1133,28 @@ export const api = {
     return data;
   },
 
+// ..................................................................................
+  // getSecretKeyValues: async (projectId, keyName) => {
+  //   if (!supabase) {
+  //     const db = getDb();
+  //     return db.secrets
+  //       .filter(s => s.projectId === projectId && s.key === keyName)
+  //       .map(s => ({
+  //         environmentId: s.environmentId,
+  //         value: s.value,
+  //         updatedAt: s.updatedAt,
+  //         version: s.version
+  //       }));
+  //   }
+// ........................................................................................
+
   getSecretKeyValues: async (projectId, keyName) => {
+    let rawData = [];
+
+    // 1. Fetch the raw encrypted data from either Mock DB or Supabase
     if (!supabase) {
       const db = getDb();
-      return db.secrets
+      rawData = db.secrets
         .filter(s => s.projectId === projectId && s.key === keyName)
         .map(s => ({
           environmentId: s.environmentId,
@@ -1142,28 +1162,67 @@ export const api = {
           updatedAt: s.updatedAt,
           version: s.version
         }));
+    } else {
+      const { data, error } = await supabase
+        .from('secrets')
+        .select('environment_id, value, updated_at, version')
+        .eq('project_id', projectId)
+        .eq('key_name', keyName)
+        .is('deleted_at', null);
+
+      if (error) throw new Error(error.message);
+
+      rawData = data.map(s => ({
+        environmentId: s.environment_id,
+        value: s.value,
+        updatedAt: s.updated_at,
+        version: s.version
+      }));
     }
 
+    // Use the same master passphrase configured in your app
+    const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
+
+    // 2. Decrypt the values before sending them to the UI
+    return await Promise.all(rawData.map(async (s) => {
+      try {
+        // If the value is in the encrypted format (contains colons: salt:iv:ciphertext)
+        if (s.value && s.value.includes(':')) {
+          const decrypted = await decryptSecret(s.value, MASTER_PASSPHRASE);
+          return { ...s, value: decrypted };
+        }
+        return s; // Fallback for old plain-text data
+      } catch (e) {
+        console.error(`Decryption failed for key: ${keyName}`, e);
+        return { ...s, value: "🔑 [DECRYPTION_ERROR]" };
+      }
+    }));
+  },
+
+  // ---------------------------------------------------------------------------------
     // Security Note: In a real app, RLS would filter this automatically. 
     // If not using RLS, we'd need to manually join permissions.
     // Assuming RLS or Admin privileges for now based on ProjectView logic.
 
-    const { data, error } = await supabase
-      .from('secrets')
-      .select('environment_id, value, updated_at, version')
-      .eq('project_id', projectId)
-      .eq('key_name', keyName)
-      .is('deleted_at', null);
+  //   const { data, error } = await supabase
+  //     .from('secrets')
+  //     .select('environment_id, value, updated_at, version')
+  //     .eq('project_id', projectId)
+  //     .eq('key_name', keyName)
+  //     .is('deleted_at', null);
 
-    if (error) throw new Error(error.message);
+  //   if (error) throw new Error(error.message);
 
-    return data.map(s => ({
-      environmentId: s.environment_id,
-      value: s.value,
-      updatedAt: s.updated_at,
-      version: s.version
-    }));
-  },
+  //   return data.map(s => ({
+  //     environmentId: s.environment_id,
+  //     value: s.value,
+  //     updatedAt: s.updated_at,
+  //     version: s.version
+  //   }));
+  // },
+
+  // ------------------------------------------------------------------------------
+  
 
   searchGlobal: async (query) => {
     if (!query || query.length < 2) return { projects: [], secrets: [] };

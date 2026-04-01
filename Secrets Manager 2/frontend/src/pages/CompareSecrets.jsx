@@ -229,12 +229,14 @@ export default function CompareSecrets() {
             </div>
 
             {/* Search Section */}
+
+            {/* Search Section */}
             <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 mb-8 backdrop-blur-sm">
                 <label className="block text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">
                     Select Secret Key
                 </label>
-                <div className="relative max-w-2xl">
-                    <div className="relative">
+                <div className="relative max-w-3xl flex gap-3">
+                    <div className="relative flex-1">
                         <Input
                             value={keyInput}
                             onChange={(e) => {
@@ -242,18 +244,37 @@ export default function CompareSecrets() {
                                 setSuggestionOpen(true);
                                 if (e.target.value === '') setSelectedKey('');
                             }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && keyInput.trim() !== '') {
+                                    setSelectedKey(keyInput.trim());
+                                    setSuggestionOpen(false);
+                                }
+                            }}
                             onFocus={() => setSuggestionOpen(true)}
                             onBlur={() => setTimeout(() => setSuggestionOpen(false), 200)}
                             placeholder="SEARCH_FOR_A_KEY..."
-                            className="pl-12 py-6 text-lg bg-gray-950 border-gray-700 text-white placeholder-gray-600 focus:ring-blue-500/50 focus:border-blue-500 rounded-lg shadow-inner font-mono"
+                            className="pl-12 py-6 text-lg bg-gray-950 border-gray-700 text-white placeholder-gray-600 focus:ring-blue-500/50 focus:border-blue-500 rounded-lg shadow-inner font-mono w-full"
                         />
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
                             <span className="text-xl">🔍</span>
                         </div>
                     </div>
 
+                    {/* Explicit Compare Button */}
+                    <Button 
+                        onClick={() => {
+                            if (keyInput.trim() !== '') {
+                                setSelectedKey(keyInput.trim());
+                                setSuggestionOpen(false);
+                            }
+                        }}
+                        className="py-6 px-8 text-lg bg-blue-600 hover:bg-blue-500 text-white border-0"
+                    >
+                        Compare
+                    </Button>
+
                     {suggestionOpen && filteredKeys.length > 0 && (
-                        <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl mt-2 max-h-80 overflow-y-auto divide-y divide-gray-800">
+                        <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl mt-16 max-h-80 overflow-y-auto divide-y divide-gray-800">
                             {filteredKeys.map(key => (
                                 <div
                                     key={key}
@@ -272,6 +293,78 @@ export default function CompareSecrets() {
                     )}
                 </div>
             </div>
+
+{/* -------------------------------------------------------------------------------------- */}
+
+            {/* Search Section */}
+            {/* <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 mb-8 backdrop-blur-sm">
+                <label className="block text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">
+                    Select Secret Key
+                </label>
+                <div className="relative max-w-2xl">
+                    <div className="relative"> */}
+                        {/* <Input
+                            value={keyInput}
+                            onChange={(e) => {
+                                setKeyInput(e.target.value.toUpperCase());
+                                setSuggestionOpen(true);
+                                if (e.target.value === '') setSelectedKey('');
+                            }}
+                            onFocus={() => setSuggestionOpen(true)}
+                            onBlur={() => setTimeout(() => setSuggestionOpen(false), 200)}
+                            placeholder="SEARCH_FOR_A_KEY..."
+                            className="pl-12 py-6 text-lg bg-gray-950 border-gray-700 text-white placeholder-gray-600 focus:ring-blue-500/50 focus:border-blue-500 rounded-lg shadow-inner font-mono"
+                        /> */}
+
+                        {/* <Input
+    value={keyInput}
+    onChange={(e) => {
+        setKeyInput(e.target.value.toUpperCase());
+        setSuggestionOpen(true);
+        if (e.target.value === '') setSelectedKey('');
+    }}
+    onKeyDown={(e) => {
+        // NEW: Listen for the Enter key to trigger the search
+        if (e.key === 'Enter' && keyInput.trim() !== '') {
+            setSelectedKey(keyInput.trim());
+            setSuggestionOpen(false);
+        }
+    }} */}
+    {/* onFocus={() => setSuggestionOpen(true)}
+    onBlur={() => setTimeout(() => setSuggestionOpen(false), 200)}
+    placeholder="SEARCH_FOR_A_KEY..."
+    className="pl-12 py-6 text-lg bg-gray-950 border-gray-700 text-white placeholder-gray-600 focus:ring-blue-500/50 focus:border-blue-500 rounded-lg shadow-inner font-mono"
+/> */}
+
+
+                        {/* <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                            <span className="text-xl">🔍</span>
+                        </div>
+                    </div>
+
+                    {suggestionOpen && filteredKeys.length > 0 && (
+                        <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl mt-2 max-h-80 overflow-y-auto divide-y divide-gray-800">
+                            {filteredKeys.map(key => (
+                                <div
+                                    key={key}
+                                    className="px-5 py-3 hover:bg-blue-900/20 cursor-pointer text-sm font-mono text-gray-300 hover:text-white transition-colors flex items-center"
+                                    onClick={() => { */}
+                                        {/* setKeyInput(key);
+                                        setSelectedKey(key);
+                                        setSuggestionOpen(false);
+                                    }}
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-gray-600 mr-3"></span>
+                                    {key}
+                                </div>
+                            ))} */}
+                        {/* </div>
+                    )}
+                </div>
+            </div> */}
+
+            {/* ---------------------------------------------------------------------------- */}
+
 
             {/* Content Area */}
             {selectedKey ? (
