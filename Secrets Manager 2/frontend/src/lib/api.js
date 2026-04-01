@@ -224,72 +224,154 @@ export const api = {
   // ---------------------------------------------------------------------------
   // Project / Secrets Methods (Supabase Integration)
   // ---------------------------------------------------------------------------
-  getProjects: async (userId, isAdmin) => {
-    if (!supabase) {
-      const db = getDb();
-      if (isAdmin) return db.projects;
-      // For non-admins, filter by project_members
-      const memberProjectIds = (db.projectMembers || []).filter(m => m.userId === userId && m.hasPermission).map(m => m.projectId);
-      return db.projects.filter(p => memberProjectIds.includes(p.id));
-    }
+//   getProjects: async (userId, isAdmin) => {
+//     if (!supabase) {
+//       const db = getDb();
+//       if (isAdmin) return db.projects;
+//       // For non-admins, filter by project_members
+//       const memberProjectIds = (db.projectMembers || []).filter(m => m.userId === userId && m.hasPermission).map(m => m.projectId);
+//       return db.projects.filter(p => memberProjectIds.includes(p.id));
+//     }
 
-    if (isAdmin) {
-      const { data, error } = await supabase.from('projects').select('*').is('deleted_at', null);
-      if (error) throw new Error(error.message);
-      return data.map(p => ({ id: p.id, name: p.display_name, slug: p.slug, description: p.description }));
-    }
+//     if (isAdmin) {
+//       const { data, error } = await supabase.from('projects').select('*').is('deleted_at', null);
+//       if (error) throw new Error(error.message);
+//       return data.map(p => ({ id: p.id, name: p.display_name, slug: p.slug, description: p.description }));
+//     }
 
-    // Non-admin: join with project_members
-    const { data, error } = await supabase
-      .from('project_members')
-      .select('project_id, projects(id, display_name, slug, description)')
-      .eq('user_id', userId)
-      .eq('has_permission', true);
-    if (error) throw new Error(error.message);
-    return data.map(m => ({ id: m.projects.id, name: m.projects.display_name, slug: m.projects.slug, description: m.projects.description }));
-  },
+//     // Non-admin: join with project_members
+//     const { data, error } = await supabase
+//       .from('project_members')
+//       .select('project_id, projects(id, display_name, slug, description)')
+//       .eq('user_id', userId)
+//       .eq('has_permission', true);
+//     if (error) throw new Error(error.message);
+//     return data.map(m => ({ id: m.projects.id, name: m.projects.display_name, slug: m.projects.slug, description: m.projects.description }));
+//   },
+// // ---------------------------------------------------------------- 
+//   createProject: async (name, description) => {
+//     const id = uuidv4();
+//     const slug = name.toLowerCase().replace(/\s+/g, '-');
+//     const now = new Date().toISOString();
 
-  createProject: async (name, description) => {
-    const id = uuidv4();
-    const slug = name.toLowerCase().replace(/\s+/g, '-');
-    const now = new Date().toISOString();
+//     if (!supabase) {
+//       const db = getDb();
+//       const newProject = { id, name, slug, description };
+//       db.projects.push(newProject);
+//       const envs = ['Development', 'Staging', 'Production'];
+//       envs.forEach(envName => {
+//         db.environments.push({
+//           id: uuidv4(),
+//           projectId: id,
+//           name: envName,
+//           slug: envName.toLowerCase(),
+//           isProduction: envName === 'Production'
+//         });
+//       });
+//       saveDb(db);
+//       return newProject;
+//     }
 
-    if (!supabase) {
-      const db = getDb();
-      const newProject = { id, name, slug, description };
-      db.projects.push(newProject);
-      const envs = ['Development', 'Staging', 'Production'];
-      envs.forEach(envName => {
-        db.environments.push({
-          id: uuidv4(),
-          projectId: id,
-          name: envName,
-          slug: envName.toLowerCase(),
-          isProduction: envName === 'Production'
-        });
-      });
-      saveDb(db);
-      return newProject;
-    }
+//     const { data, error } = await supabase.from('projects').insert({
+//       id, display_name: name, slug, description, created_at: now, updated_at: now
+//     }).select().single();
+//     if (error) throw new Error(error.message);
 
-    const { data, error } = await supabase.from('projects').insert({
-      id, display_name: name, slug, description, created_at: now, updated_at: now
-    }).select().single();
-    if (error) throw new Error(error.message);
+//     // Create default environments
+//     const envs = ['Development', 'Staging', 'Production'];
+//     for (const envName of envs) {
+//       await supabase.from('environments').insert({
+//         id: uuidv4(),
+//         project_id: id,
+//         display_name: envName,
+//         slug: envName.toLowerCase(),
+//         created_at: now
+//       });
+//     }
+//     return { id: data.id, name: data.display_name, slug: data.slug, description: data.description };
+//   },
 
-    // Create default environments
+  // ----------------------------------------------------------------
+
+  createProject: async (name, description, creatorEmail) => {
+  const id = uuidv4();
+  const slug = name.toLowerCase().replace(/\s+/g, '-');
+  const now = new Date().toISOString();
+
+  // --- MOCK DATABASE PATH (LocalStorage) ---
+  if (!supabase) {
+    const db = getDb();
+    const newProject = { id, name, slug, description };
+    db.projects.push(newProject);
+
+    // 1. Create Default Environments
     const envs = ['Development', 'Staging', 'Production'];
-    for (const envName of envs) {
-      await supabase.from('environments').insert({
-        id: uuidv4(),
-        project_id: id,
-        display_name: envName,
+    const createdEnvIds = [];
+    
+    envs.forEach(envName => {
+      const envId = uuidv4();
+      createdEnvIds.push(envId);
+      db.environments.push({
+        id: envId,
+        projectId: id,
+        name: envName,
         slug: envName.toLowerCase(),
-        created_at: now
+        isProduction: envName === 'Production'
       });
-    }
-    return { id: data.id, name: data.display_name, slug: data.slug, description: data.description };
-  },
+    });
+
+    // 2. Link creator as a Member (Fixes visibility issue)
+    const creator = db.users.find(u => u.email === creatorEmail);
+    db.projectMembers.push({
+      id: uuidv4(),
+      projectId: id,
+      userId: creator ? creator.id : null,
+      inviteEmail: creatorEmail,
+      environments: createdEnvIds, // Give access to all initial envs
+      status: 'ACTIVE',
+      hasPermission: true,
+      invitedAt: now
+    });
+
+    saveDb(db);
+    return newProject;
+  }
+
+  // --- SUPABASE DATABASE PATH (PostgreSQL) ---
+  
+  // 1. Insert the Project
+  const { data: project, error } = await supabase.from('projects').insert({
+    id, display_name: name, slug, description, created_at: now, updated_at: now
+  }).select().single();
+  
+  if (error) throw new Error(error.message);
+
+  // 2. Create Default Environments
+  const envs = ['Development', 'Staging', 'Production'];
+  const envIds = [];
+  
+  for (const envName of envs) {
+    const envId = uuidv4();
+    envIds.push(envId);
+    await supabase.from('environments').insert({
+      id: envId,
+      project_id: id,
+      display_name: envName,
+      slug: envName.toLowerCase(),
+      created_at: now
+    });
+  }
+
+  // 3. Link creator as a Member (Ensures visibility in Dashboard)
+  await api.addProjectMember(id, creatorEmail, envIds);
+
+  return { 
+    id: project.id, 
+    name: project.display_name, 
+    slug: project.slug, 
+    description: project.description 
+  };
+},
 
   getProject: async (slug, userId, isAdmin) => {
     if (!supabase) {
@@ -1222,7 +1304,7 @@ export const api = {
   // },
 
   // ------------------------------------------------------------------------------
-  
+
 
   searchGlobal: async (query) => {
     if (!query || query.length < 2) return { projects: [], secrets: [] };
