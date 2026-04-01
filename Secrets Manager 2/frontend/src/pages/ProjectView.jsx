@@ -91,7 +91,7 @@ export default function ProjectView({ params }) {
         if (!project || !currentEnvId) return;
         try {
             const [s, r] = await Promise.all([
-                api.getSecrets(project.id),
+                api.getSecrets(project.id, null, "sm2-demo-master-passphrase"),
                 api.getSecretRegistry(project.id)
             ]);
             setAllSecrets(s);

@@ -277,29 +277,29 @@ export default function LandingHero() {
                             {/* Central Registry */}
                             <g className="registry-node">
                                 <rect x="450" y="150" width="100" height="60" rx="8" fill="rgba(129, 140, 248, 0.2)" stroke="rgba(129, 140, 248, 0.5)" strokeWidth="2"/>
-                                <text x="500" y="175" textAnchor="middle" fontSize="12" fill="var(--text-main)" fontWeight="600">Registry</text>
-                                <text x="500" y="190" textAnchor="middle" fontSize="10" fill="var(--text-dim)">Source of Truth</text>
+                                <text x="500" y="175" textAnchor="middle" fontSize="12" fill="white" fontWeight="600">Registry</text>
+                                <text x="500" y="190" textAnchor="middle" fontSize="10" fill="white">Source of Truth</text>
                             </g>
 
                             {/* Development Environment */}
                             <g className="dev-node">
                                 <rect x="200" y="50" width="80" height="50" rx="6" fill="rgba(34, 197, 94, 0.2)" stroke="rgba(34, 197, 94, 0.5)" strokeWidth="2"/>
-                                <text x="240" y="70" textAnchor="middle" fontSize="10" fill="var(--text-main)" fontWeight="600" >Dev</text>
-                                <text x="240" y="82" textAnchor="middle" fontSize="8" fill="var(--text-dim)">Local</text>
+                                <text x="240" y="70" textAnchor="middle" fontSize="10" fill="white" fontWeight="600" >Dev</text>
+                                <text x="240" y="82" textAnchor="middle" fontSize="8" fill="white">Local</text>
                             </g>
 
                             {/* Staging Environment */}
                             <g className="staging-node">
                                 <rect x="200" y="250" width="80" height="50" rx="6" fill="rgba(244, 114, 182, 0.2)" stroke="rgba(244, 114, 182, 0.5)" strokeWidth="2"/>
-                                <text x="240" y="270" textAnchor="middle" fontSize="10" fill="var(--text-main)" fontWeight="600">Staging</text>
-                                <text x="240" y="282" textAnchor="middle" fontSize="8" fill="var(--text-dim)">Test</text>
+                                <text x="240" y="270" textAnchor="middle" fontSize="10" fill="white" fontWeight="600">Staging</text>
+                                <text x="240" y="282" textAnchor="middle" fontSize="8" fill="white">Test</text>
                             </g>
 
                             {/* Production Environment */}
                             <g className="prod-node">
                                 <rect x="720" y="150" width="80" height="50" rx="6" fill="rgba(168, 85, 247, 0.2)" stroke="rgba(168, 85, 247, 0.5)" strokeWidth="2"/>
-                                <text x="760" y="170" textAnchor="middle" fontSize="10" fill="var(--text-main)" fontWeight="600">Prod</text>
-                                <text x="760" y="182" textAnchor="middle" fontSize="8" fill="var(--text-dim)">Live</text>
+                                <text x="760" y="170" textAnchor="middle" fontSize="10" fill="white" fontWeight="600">Prod</text>
+                                <text x="760" y="182" textAnchor="middle" fontSize="8" fill="white">Live</text>
                             </g>
 
                             {/* Flow Lines */}

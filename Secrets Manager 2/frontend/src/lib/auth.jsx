@@ -80,6 +80,6 @@ export function AuthProvider({ children }) {
     );
 }
 
-export function useAuth() {
+export function useAuth() { // eslint-disable-line react-refresh/only-export-components
     return useContext(AuthContext);
 }

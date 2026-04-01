@@ -24,7 +24,8 @@
 }
 
 body {
-    background: var(--bg-navy-gradient);
+    background: #180429;
+    background: linear-gradient(90deg, rgba(24, 4, 41, 1) 12%, rgba(5, 5, 26, 1) 72%);
     color: hsl(var(--text-main));
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     margin: 0;
@@ -2119,11 +2120,11 @@ body {
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
-    color: hsl(var(--text-main));
+    color: white;
 }
 
 .step-description {
-    color: hsl(var(--text-muted));
+    color: white;
     line-height: 1.6;
     margin: 0;
 }

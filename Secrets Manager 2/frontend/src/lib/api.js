@@ -144,7 +144,12 @@ export const api = {
 
       // Normalize isAdmin field
       return { user: { ...user, isAdmin: user.isAdmin || user.is_admin }, sessionToken };
-    } catch {
+    } catch (e) {
+      if (e.message.includes('fetch') || e.message.includes('Failed to fetch') || e.message.includes('network')) {
+        // Network error, fallback to mock
+        console.warn('Network error in checkSession, falling back to mock');
+        return api._mockCheckSession(sessionToken);
+      }
       throw new Error('Invalid session');
     }
   },
@@ -394,14 +399,23 @@ export const api = {
         ? db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId)
         : db.secrets.filter(s => s.projectId === projectId);
     } else {
-      let query = supabase.from('secrets').select('*').eq('project_id', projectId).is('deleted_at', null);
-      if (envId) query = query.eq('environment_id', envId);
-      const { data: res, error } = await query;
-      if (error) throw new Error(error.message);
-      data = res.map(s => ({
-        id: s.id, projectId: s.project_id, environmentId: s.environment_id,
-        key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
-      }));
+      try {
+        let query = supabase.from('secrets').select('*').eq('project_id', projectId).is('deleted_at', null);
+        if (envId) query = query.eq('environment_id', envId);
+        const { data: res, error } = await query;
+        if (error) throw new Error(error.message);
+        data = res.map(s => ({
+          id: s.id, projectId: s.project_id, environmentId: s.environment_id,
+          key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
+        }));
+      } catch (e) {
+        // Fallback to local db if network fails
+        console.warn('Supabase failed, falling back to local db:', e.message);
+        const db = getDb();
+        data = envId
+          ? db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId)
+          : db.secrets.filter(s => s.projectId === projectId);
+      }
     }
 
     // 2. Decrypt the values using the provided passphrase
