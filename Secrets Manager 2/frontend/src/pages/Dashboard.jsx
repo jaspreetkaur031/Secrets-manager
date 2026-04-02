@@ -80,12 +80,18 @@ import { Plus, ArrowRight, Server } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
 import './Dashboard.css';
 
 export default function Dashboard() {
     const { user } = useAuth();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [createError, setCreateError] = useState('');
+    const [projectForm, setProjectForm] = useState({ name: '', description: '' });
 
     useEffect(() => {
         const loadProjects = async () => {
@@ -100,16 +106,35 @@ export default function Dashboard() {
     }, [user]);
 
     const handleNewProject = async () => {
-        const name = prompt("Enter project name:");
-        // Ensure user email is passed so the creator is added to the project_members table
-        if (name && user?.email) {
-            try {
-                const p = await api.createProject(name, "New project", user.email);
-                setProjects(prev => [...prev, p]);
-            } catch (error) {
-                console.error("Failed to create project:", error);
-                alert("Error creating project. Please try again.");
-            }
+        setCreateError('');
+        setProjectForm({ name: '', description: '' });
+        setIsCreateOpen(true);
+    };
+
+    const submitNewProject = async () => {
+        const name = projectForm.name.trim();
+        const description = (projectForm.description || '').trim() || 'New project';
+
+        if (!name) {
+            setCreateError('Project name is required.');
+            return;
+        }
+        if (!user?.email) {
+            setCreateError('Missing user email. Please log out and log in again.');
+            return;
+        }
+
+        try {
+            setIsCreating(true);
+            setCreateError('');
+            const p = await api.createProject(name, description, user.email);
+            setProjects(prev => [...prev, p]);
+            setIsCreateOpen(false);
+        } catch (error) {
+            console.error("Failed to create project:", error);
+            setCreateError(error?.message || 'Failed to create project.');
+        } finally {
+            setIsCreating(false);
         }
     };
 
@@ -155,6 +180,50 @@ export default function Dashboard() {
                     ))
                 )}
             </div>
+
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => (isCreating ? null : setIsCreateOpen(false))}
+                title="Create Project"
+                footer={
+                    <>
+                        <Button variant="ghost" onClick={() => setIsCreateOpen(false)} disabled={isCreating}>
+                            Cancel
+                        </Button>
+                        <Button onClick={submitNewProject} disabled={isCreating}>
+                            {isCreating ? 'Creating…' : 'Create'}
+                        </Button>
+                    </>
+                }
+            >
+                {createError ? (
+                    <div className="pv-error-banner" style={{ marginBottom: '12px' }}>
+                        <span>{createError}</span>
+                        <button onClick={() => setCreateError('')}>×</button>
+                    </div>
+                ) : null}
+
+                <div className="form-group">
+                    <label>Project name</label>
+                    <Input
+                        value={projectForm.name}
+                        onChange={(e) => setProjectForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g. Ecom Web App"
+                        disabled={isCreating}
+                        autoFocus
+                    />
+                </div>
+
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                    <label>Description (optional)</label>
+                    <Input
+                        value={projectForm.description}
+                        onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Short description…"
+                        disabled={isCreating}
+                    />
+                </div>
+            </Modal>
         </div>
     );
 }

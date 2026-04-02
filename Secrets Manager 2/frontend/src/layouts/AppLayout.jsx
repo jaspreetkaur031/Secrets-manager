@@ -25,7 +25,9 @@ export function AppLayout({ children }) {
     }, []);
 
     const navItems = [
-        { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+        // Note: '/' is the public marketing landing page (see App.jsx).
+        // Use '/dashboard' as the in-app dashboard to avoid jumping out of the app shell.
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Projects', href: '/projects', icon: Folder },
         { label: 'Settings', href: '/settings', icon: Settings },
     ];

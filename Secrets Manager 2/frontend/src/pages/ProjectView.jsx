@@ -234,6 +234,11 @@ export default function ProjectView({ params }) {
                 await api.deleteEnvironment(deleteConfirm.id);
                 setCurrentEnvId(null);
                 await loadProject();
+            } else if (deleteConfirm.type === 'project') {
+                await api.deleteProject(deleteConfirm.id);
+                setDeleteConfirm({ open: false, type: null, id: null, name: '' });
+                setLocation('/projects');
+                return;
             }
             setDeleteConfirm({ open: false, type: null, id: null, name: '' });
         } catch (e) {
@@ -399,14 +404,24 @@ export default function ProjectView({ params }) {
                     <div className="pv-slug">/{project.slug}</div>
                 </div>
                 {isAdmin && (
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setLocation(`/project/${project.slug}/compare`)}>
-                            <Split size={16} className="mr-2" />
-                            Compare
-                        </Button>
-                        <Button onClick={() => openSecretModal()}>
-                            <Plus size={16} className="mr-2" />
-                            Add Secret
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex gap-2 items-start">
+                            <Button variant="outline" onClick={() => setLocation(`/project/${project.slug}/compare`)}>
+                                <Split size={16} className="mr-2" />
+                                Compare
+                            </Button>
+                            <Button onClick={() => openSecretModal()}>
+                                <Plus size={16} className="mr-2" />
+                                Add Secret
+                            </Button>
+                        </div>
+                        <Button
+                            variant="danger"
+                            onClick={() => confirmDelete('project', project.id, project.name)}
+                            title="Delete Project"
+                        >
+                            <Trash2 size={16} className="mr-2" />
+                            Delete Project
                         </Button>
                     </div>
                 )}
@@ -668,7 +683,7 @@ export default function ProjectView({ params }) {
             <Modal
                 isOpen={deleteConfirm.open}
                 onClose={() => setDeleteConfirm({ open: false, type: null, id: null, name: '' })}
-                title={`Delete ${deleteConfirm.type === 'environment' ? 'Environment' : 'Secret'}`}
+                title={`Delete ${deleteConfirm.type === 'environment' ? 'Environment' : deleteConfirm.type === 'project' ? 'Project' : 'Secret'}`}
                 footer={
                     <>
                         <Button variant="ghost" onClick={() => setDeleteConfirm({ open: false, type: null, id: null, name: '' })}>
@@ -687,6 +702,9 @@ export default function ProjectView({ params }) {
                         Are you sure you want to delete <strong>{deleteConfirm.name}</strong>?
                         {deleteConfirm.type === 'environment' && (
                             <span className="delete-warning"> This will also delete all secrets in this environment.</span>
+                        )}
+                        {deleteConfirm.type === 'project' && (
+                            <span className="delete-warning"> This will also delete all environments, secrets, members, registry entries, and logs in this project.</span>
                         )}
                     </p>
                     <p className="delete-note">This action cannot be undone.</p>

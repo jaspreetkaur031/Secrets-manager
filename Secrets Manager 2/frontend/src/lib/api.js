@@ -8,6 +8,28 @@ const ADMIN_EMAIL = 'jaspreetkaursaini031@gmail.com';
 
 const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
 
+function isLikelyEncryptedSecretValue(value) {
+  if (typeof value !== 'string') return false;
+  const parts = value.split(':');
+  if (parts.length !== 3) return false;
+
+  try {
+    const [saltStr, ivStr, cipherStr] = parts;
+    const salt = Uint8Array.from(atob(saltStr), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(ivStr), c => c.charCodeAt(0));
+    const ciphertext = Uint8Array.from(atob(cipherStr), c => c.charCodeAt(0));
+
+    // Matches `encryptSecret()` in `src/lib/crypto.js`
+    if (salt.byteLength !== 16) return false;
+    if (iv.byteLength !== 12) return false;
+    if (ciphertext.byteLength < 1) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const initialData = {
   users: [
     { id: 'u1', email: 'admin@growthjockey.com', name: 'Admin User', isAdmin: true },
@@ -55,11 +77,9 @@ function saveDb(db) {
 }
 
 export const api = {
-
   // ---------------------------------------------------------------------------
   // Auth Methods (Supabase Integration)
   // ---------------------------------------------------------------------------
-
   signup: async (email, name) => {
     if (!supabase) return api._mockSignup(email, name);
 
@@ -146,12 +166,7 @@ export const api = {
 
       // Normalize isAdmin field
       return { user: { ...user, isAdmin: user.isAdmin || user.is_admin }, sessionToken };
-    } catch (e) {
-      if (e.message.includes('fetch') || e.message.includes('Failed to fetch') || e.message.includes('network')) {
-        // Network error, fallback to mock
-        console.warn('Network error in checkSession, falling back to mock');
-        return api._mockCheckSession(sessionToken);
-      }
+    } catch {
       throw new Error('Invalid session');
     }
   },
@@ -224,154 +239,169 @@ export const api = {
   // ---------------------------------------------------------------------------
   // Project / Secrets Methods (Supabase Integration)
   // ---------------------------------------------------------------------------
-//   getProjects: async (userId, isAdmin) => {
-//     if (!supabase) {
-//       const db = getDb();
-//       if (isAdmin) return db.projects;
-//       // For non-admins, filter by project_members
-//       const memberProjectIds = (db.projectMembers || []).filter(m => m.userId === userId && m.hasPermission).map(m => m.projectId);
-//       return db.projects.filter(p => memberProjectIds.includes(p.id));
-//     }
+  getProjects: async (userId, isAdmin) => {
+    if (!supabase) {
+      const db = getDb();
+      if (isAdmin) return db.projects;
+      // For non-admins, filter by project_members
+      const memberProjectIds = (db.projectMembers || []).filter(m => m.userId === userId && m.hasPermission).map(m => m.projectId);
+      return db.projects.filter(p => memberProjectIds.includes(p.id));
+    }
 
-//     if (isAdmin) {
-//       const { data, error } = await supabase.from('projects').select('*').is('deleted_at', null);
-//       if (error) throw new Error(error.message);
-//       return data.map(p => ({ id: p.id, name: p.display_name, slug: p.slug, description: p.description }));
-//     }
+    if (isAdmin) {
+      const { data, error } = await supabase.from('projects').select('*').is('deleted_at', null);
+      if (error) throw new Error(error.message);
+      return data.map(p => ({ id: p.id, name: p.display_name, slug: p.slug, description: p.description }));
+    }
 
-//     // Non-admin: join with project_members
-//     const { data, error } = await supabase
-//       .from('project_members')
-//       .select('project_id, projects(id, display_name, slug, description)')
-//       .eq('user_id', userId)
-//       .eq('has_permission', true);
-//     if (error) throw new Error(error.message);
-//     return data.map(m => ({ id: m.projects.id, name: m.projects.display_name, slug: m.projects.slug, description: m.projects.description }));
-//   },
-// // ---------------------------------------------------------------- 
-//   createProject: async (name, description) => {
-//     const id = uuidv4();
-//     const slug = name.toLowerCase().replace(/\s+/g, '-');
-//     const now = new Date().toISOString();
+    // Non-admin: join with project_members
+    const { data, error } = await supabase
+      .from('project_members')
+      .select('project_id, projects(id, display_name, slug, description)')
+      .eq('user_id', userId)
+      .eq('has_permission', true);
+    if (error) throw new Error(error.message);
+    return data.map(m => ({ id: m.projects.id, name: m.projects.display_name, slug: m.projects.slug, description: m.projects.description }));
+  },
 
-//     if (!supabase) {
-//       const db = getDb();
-//       const newProject = { id, name, slug, description };
-//       db.projects.push(newProject);
-//       const envs = ['Development', 'Staging', 'Production'];
-//       envs.forEach(envName => {
-//         db.environments.push({
-//           id: uuidv4(),
-//           projectId: id,
-//           name: envName,
-//           slug: envName.toLowerCase(),
-//           isProduction: envName === 'Production'
-//         });
-//       });
-//       saveDb(db);
-//       return newProject;
-//     }
+  createProject: async (name, description, creatorEmail = null) => {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    const baseSlug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || `project-${id.slice(0, 8)}`;
 
-//     const { data, error } = await supabase.from('projects').insert({
-//       id, display_name: name, slug, description, created_at: now, updated_at: now
-//     }).select().single();
-//     if (error) throw new Error(error.message);
-
-//     // Create default environments
-//     const envs = ['Development', 'Staging', 'Production'];
-//     for (const envName of envs) {
-//       await supabase.from('environments').insert({
-//         id: uuidv4(),
-//         project_id: id,
-//         display_name: envName,
-//         slug: envName.toLowerCase(),
-//         created_at: now
-//       });
-//     }
-//     return { id: data.id, name: data.display_name, slug: data.slug, description: data.description };
-//   },
-
-  // ----------------------------------------------------------------
-
-  createProject: async (name, description, creatorEmail) => {
-  const id = uuidv4();
-  const slug = name.toLowerCase().replace(/\s+/g, '-');
-  const now = new Date().toISOString();
-
-  // --- MOCK DATABASE PATH (LocalStorage) ---
-  if (!supabase) {
-    const db = getDb();
-    const newProject = { id, name, slug, description };
-    db.projects.push(newProject);
-
-    // 1. Create Default Environments
-    const envs = ['Development', 'Staging', 'Production'];
-    const createdEnvIds = [];
-    
-    envs.forEach(envName => {
-      const envId = uuidv4();
-      createdEnvIds.push(envId);
-      db.environments.push({
-        id: envId,
-        projectId: id,
-        name: envName,
-        slug: envName.toLowerCase(),
-        isProduction: envName === 'Production'
+    const createProjectInMockDb = (finalSlug) => {
+      const db = getDb();
+      const newProject = { id, name, slug: finalSlug, description };
+      db.projects.push(newProject);
+      const envs = ['Development', 'Staging', 'Production'];
+      const createdEnvIds = [];
+      envs.forEach(envName => {
+        const envId = uuidv4();
+        createdEnvIds.push(envId);
+        db.environments.push({
+          id: envId,
+          projectId: id,
+          name: envName,
+          slug: envName.toLowerCase(),
+          isProduction: envName === 'Production'
+        });
       });
-    });
 
-    // 2. Link creator as a Member (Fixes visibility issue)
-    const creator = db.users.find(u => u.email === creatorEmail);
-    db.projectMembers.push({
-      id: uuidv4(),
-      projectId: id,
-      userId: creator ? creator.id : null,
-      inviteEmail: creatorEmail,
-      environments: createdEnvIds, // Give access to all initial envs
-      status: 'ACTIVE',
-      hasPermission: true,
-      invitedAt: now
-    });
+      // Ensure creator can see/access the project (non-admin path filters by membership)
+      if (creatorEmail) {
+        const creator = db.users.find(u => u.email === creatorEmail);
+        db.projectMembers.push({
+          id: uuidv4(),
+          projectId: id,
+          userId: creator ? creator.id : null,
+          inviteEmail: creatorEmail,
+          environments: createdEnvIds,
+          status: 'ACTIVE',
+          hasPermission: true,
+          invitedAt: now
+        });
+      }
 
-    saveDb(db);
-    return newProject;
-  }
+      saveDb(db);
+      return newProject;
+    };
 
-  // --- SUPABASE DATABASE PATH (PostgreSQL) ---
-  
-  // 1. Insert the Project
-  const { data: project, error } = await supabase.from('projects').insert({
-    id, display_name: name, slug, description, created_at: now, updated_at: now
-  }).select().single();
-  
-  if (error) throw new Error(error.message);
+    if (!supabase) {
+      // Ensure unique slug in mock DB
+      const db = getDb();
+      const existing = new Set((db.projects || []).map(p => p.slug));
+      let finalSlug = baseSlug;
+      for (let i = 0; i < 50 && existing.has(finalSlug); i++) {
+        finalSlug = `${baseSlug}-${i + 2}`;
+      }
+      return createProjectInMockDb(finalSlug);
+    }
 
-  // 2. Create Default Environments
-  const envs = ['Development', 'Staging', 'Production'];
-  const envIds = [];
-  
-  for (const envName of envs) {
-    const envId = uuidv4();
-    envIds.push(envId);
-    await supabase.from('environments').insert({
-      id: envId,
-      project_id: id,
-      display_name: envName,
-      slug: envName.toLowerCase(),
-      created_at: now
-    });
-  }
+    let projectRow;
+    try {
+      // Ensure unique slug in Supabase (retry if unique constraint hits)
+      let finalSlug = baseSlug;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        // quick existence check (also avoids noisy 409s)
+        const { data: existing } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('slug', finalSlug)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (existing) {
+          finalSlug = `${baseSlug}-${attempt + 2}`;
+          continue;
+        }
 
-  // 3. Link creator as a Member (Ensures visibility in Dashboard)
-  await api.addProjectMember(id, creatorEmail, envIds);
+        const { data, error } = await supabase.from('projects').insert({
+          id, display_name: name, slug: finalSlug, description, created_at: now, updated_at: now
+        }).select().single();
 
-  return { 
-    id: project.id, 
-    name: project.display_name, 
-    slug: project.slug, 
-    description: project.description 
-  };
-},
+        if (!error) {
+          projectRow = data;
+          break;
+        }
+
+        const msg = (error.message || '').toLowerCase();
+        const isUniqueViolation =
+          error.code === '23505' ||
+          msg.includes('duplicate key value') ||
+          msg.includes('projects_slug_key');
+        if (isUniqueViolation) {
+          finalSlug = `${baseSlug}-${attempt + 2}`;
+          continue;
+        }
+        throw error;
+      }
+
+      if (!projectRow) throw new Error('Could not generate a unique project slug');
+    } catch (e) {
+      const msg = (e && (e.message || e.toString())) || '';
+      const isRlsOrAuth =
+        msg.toLowerCase().includes('row-level security') ||
+        msg.toLowerCase().includes('rls') ||
+        msg.toLowerCase().includes('jwt') ||
+        msg.toLowerCase().includes('permission') ||
+        msg.toLowerCase().includes('not authorized') ||
+        msg.includes('401');
+
+      // Supabase is configured but not authenticated (common in this demo).
+      // Fall back to the local mock DB so the UI remains usable.
+      if (isRlsOrAuth) {
+        console.warn('[API] Supabase blocked createProject (RLS/401). Falling back to mock DB.', e);
+        // Ensure unique slug in mock DB as well
+        const db = getDb();
+        const existing = new Set((db.projects || []).map(p => p.slug));
+        let finalSlug = baseSlug;
+        for (let i = 0; i < 50 && existing.has(finalSlug); i++) {
+          finalSlug = `${baseSlug}-${i + 2}`;
+        }
+        return createProjectInMockDb(finalSlug);
+      }
+
+      throw new Error(msg || 'Failed to create project');
+    }
+
+    // Create default environments
+    const envs = ['Development', 'Staging', 'Production'];
+    for (const envName of envs) {
+      await supabase.from('environments').insert({
+        id: uuidv4(),
+        project_id: id,
+        display_name: envName,
+        slug: envName.toLowerCase(),
+        created_at: now
+      });
+    }
+    return { id: projectRow.id, name: projectRow.display_name, slug: projectRow.slug, description: projectRow.description };
+  },
 
   getProject: async (slug, userId, isAdmin) => {
     if (!supabase) {
@@ -483,29 +513,20 @@ export const api = {
         ? db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId)
         : db.secrets.filter(s => s.projectId === projectId);
     } else {
-      try {
-        let query = supabase.from('secrets').select('*').eq('project_id', projectId).is('deleted_at', null);
-        if (envId) query = query.eq('environment_id', envId);
-        const { data: res, error } = await query;
-        if (error) throw new Error(error.message);
-        data = res.map(s => ({
-          id: s.id, projectId: s.project_id, environmentId: s.environment_id,
-          key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
-        }));
-      } catch (e) {
-        // Fallback to local db if network fails
-        console.warn('Supabase failed, falling back to local db:', e.message);
-        const db = getDb();
-        data = envId
-          ? db.secrets.filter(s => s.projectId === projectId && s.environmentId === envId)
-          : db.secrets.filter(s => s.projectId === projectId);
-      }
+      let query = supabase.from('secrets').select('*').eq('project_id', projectId).is('deleted_at', null);
+      if (envId) query = query.eq('environment_id', envId);
+      const { data: res, error } = await query;
+      if (error) throw new Error(error.message);
+      data = res.map(s => ({
+        id: s.id, projectId: s.project_id, environmentId: s.environment_id,
+        key: s.key_name, value: s.value, version: s.version, updatedAt: s.updated_at
+      }));
     }
 
     // 2. Decrypt the values using the provided passphrase
     return await Promise.all(data.map(async (s) => {
       try {
-        if (s.value && s.value.includes(':')) {
+        if (isLikelyEncryptedSecretValue(s.value)) {
           const decrypted = await decryptSecret(s.value, passphrase);
           return { ...s, value: decrypted };
         }
@@ -915,6 +936,36 @@ export const api = {
     return true;
   },
 
+  deleteProject: async (projectId) => {
+    const now = new Date().toISOString();
+
+    if (!supabase) {
+      const db = getDb();
+      db.projects = (db.projects || []).filter(p => p.id !== projectId);
+      db.environments = (db.environments || []).filter(e => e.projectId !== projectId);
+      db.secrets = (db.secrets || []).filter(s => s.projectId !== projectId);
+      db.projectSecretRegistry = (db.projectSecretRegistry || []).filter(r => r.projectId !== projectId);
+      db.projectMembers = (db.projectMembers || []).filter(m => m.projectId !== projectId);
+      db.auditLogs = (db.auditLogs || []).filter(l => l.projectId !== projectId);
+      saveDb(db);
+      return true;
+    }
+
+    // Soft delete project and its secrets/environments. Other related tables are best-effort.
+    const { error: pErr } = await supabase.from('projects').update({ deleted_at: now }).eq('id', projectId);
+    if (pErr) throw new Error(pErr.message);
+
+    await supabase.from('environments').update({ deleted_at: now }).eq('project_id', projectId);
+    await supabase.from('secrets').update({ deleted_at: now }).eq('project_id', projectId);
+
+    // These tables may not have deleted_at; delete rows instead.
+    try { await supabase.from('project_members').delete().eq('project_id', projectId); } catch { /* ignore */ }
+    try { await supabase.from('project_secret_registry').delete().eq('project_id', projectId); } catch { /* ignore */ }
+    try { await supabase.from('audit_logs').delete().eq('project_id', projectId); } catch { /* ignore */ }
+
+    return true;
+  },
+
   getProjectMembers: async (projectId) => {
     console.log('[API] getProjectMembers', projectId, !!supabase);
     if (!supabase) {
@@ -1215,28 +1266,10 @@ export const api = {
     return data;
   },
 
-// ..................................................................................
-  // getSecretKeyValues: async (projectId, keyName) => {
-  //   if (!supabase) {
-  //     const db = getDb();
-  //     return db.secrets
-  //       .filter(s => s.projectId === projectId && s.key === keyName)
-  //       .map(s => ({
-  //         environmentId: s.environmentId,
-  //         value: s.value,
-  //         updatedAt: s.updatedAt,
-  //         version: s.version
-  //       }));
-  //   }
-// ........................................................................................
-
   getSecretKeyValues: async (projectId, keyName) => {
-    let rawData = [];
-
-    // 1. Fetch the raw encrypted data from either Mock DB or Supabase
     if (!supabase) {
       const db = getDb();
-      rawData = db.secrets
+      const rows = db.secrets
         .filter(s => s.projectId === projectId && s.key === keyName)
         .map(s => ({
           environmentId: s.environmentId,
@@ -1244,67 +1277,52 @@ export const api = {
           updatedAt: s.updatedAt,
           version: s.version
         }));
-    } else {
-      const { data, error } = await supabase
-        .from('secrets')
-        .select('environment_id, value, updated_at, version')
-        .eq('project_id', projectId)
-        .eq('key_name', keyName)
-        .is('deleted_at', null);
 
-      if (error) throw new Error(error.message);
-
-      rawData = data.map(s => ({
-        environmentId: s.environment_id,
-        value: s.value,
-        updatedAt: s.updated_at,
-        version: s.version
+      return await Promise.all(rows.map(async (row) => {
+        try {
+          if (isLikelyEncryptedSecretValue(row.value)) {
+            return { ...row, value: await decryptSecret(row.value, MASTER_PASSPHRASE) };
+          }
+          return row;
+        } catch (e) {
+          console.error(`Decryption failed for key: ${keyName}`, e);
+          return { ...row, value: "🔑 [DECRYPTION_ERROR]" };
+        }
       }));
     }
 
-    // Use the same master passphrase configured in your app
-    const MASTER_PASSPHRASE = "sm2-demo-master-passphrase";
-
-    // 2. Decrypt the values before sending them to the UI
-    return await Promise.all(rawData.map(async (s) => {
-      try {
-        // If the value is in the encrypted format (contains colons: salt:iv:ciphertext)
-        if (s.value && s.value.includes(':')) {
-          const decrypted = await decryptSecret(s.value, MASTER_PASSPHRASE);
-          return { ...s, value: decrypted };
-        }
-        return s; // Fallback for old plain-text data
-      } catch (e) {
-        console.error(`Decryption failed for key: ${keyName}`, e);
-        return { ...s, value: "🔑 [DECRYPTION_ERROR]" };
-      }
-    }));
-  },
-
-  // ---------------------------------------------------------------------------------
     // Security Note: In a real app, RLS would filter this automatically. 
     // If not using RLS, we'd need to manually join permissions.
     // Assuming RLS or Admin privileges for now based on ProjectView logic.
 
-  //   const { data, error } = await supabase
-  //     .from('secrets')
-  //     .select('environment_id, value, updated_at, version')
-  //     .eq('project_id', projectId)
-  //     .eq('key_name', keyName)
-  //     .is('deleted_at', null);
+    const { data, error } = await supabase
+      .from('secrets')
+      .select('environment_id, value, updated_at, version')
+      .eq('project_id', projectId)
+      .eq('key_name', keyName)
+      .is('deleted_at', null);
 
-  //   if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-  //   return data.map(s => ({
-  //     environmentId: s.environment_id,
-  //     value: s.value,
-  //     updatedAt: s.updated_at,
-  //     version: s.version
-  //   }));
-  // },
+    const rows = data.map(s => ({
+      environmentId: s.environment_id,
+      value: s.value,
+      updatedAt: s.updated_at,
+      version: s.version
+    }));
 
-  // ------------------------------------------------------------------------------
-
+    return await Promise.all(rows.map(async (row) => {
+      try {
+        if (isLikelyEncryptedSecretValue(row.value)) {
+          return { ...row, value: await decryptSecret(row.value, MASTER_PASSPHRASE) };
+        }
+        return row;
+      } catch (e) {
+        console.error(`Decryption failed for key: ${keyName}`, e);
+        return { ...row, value: "🔑 [DECRYPTION_ERROR]" };
+      }
+    }));
+  },
 
   searchGlobal: async (query) => {
     if (!query || query.length < 2) return { projects: [], secrets: [] };
