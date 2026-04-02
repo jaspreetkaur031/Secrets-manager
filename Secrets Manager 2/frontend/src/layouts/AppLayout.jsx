@@ -27,7 +27,7 @@ export function AppLayout({ children }) {
     const navItems = [
         // Note: '/' is the public marketing landing page (see App.jsx).
         // Use '/dashboard' as the in-app dashboard to avoid jumping out of the app shell.
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Dashboard', href: '/', icon: LayoutDashboard },
         { label: 'Projects', href: '/projects', icon: Folder },
         { label: 'Settings', href: '/settings', icon: Settings },
     ];
@@ -37,8 +37,11 @@ export function AppLayout({ children }) {
             {/* Sidebar */}
             <aside className="sidebar">
                 <div className="sidebar-header">
-                    <Shield className="logo-icon" />
+                    {/* <Shield className="logo-icon" /> */}
+                    <Link href="/" className="sidebar-header" style={{ cursor: 'pointer', textDecoration: 'none' }}>
+                <Shield className="logo-icon" />
                     <span className="logo-text">Secrets Manager</span>
+                    </Link>
                 </div>
 
                 <nav className="sidebar-nav">
