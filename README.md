@@ -9,7 +9,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E.svg?style=for-the-badge&logo=supabase)](https://supabase.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-SDK-339933.svg?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
 
-<p align="center">
+<p>
   Stop committing <code>.env</code> files. Start injecting secrets directly into memory.
 </p>
 
@@ -19,6 +19,8 @@
 
 ## 🚀 The Problem vs. The VaultFlow Solution
 
+Managing environment variables via `.env` files is a security risk and an operational nightmare. Secrets get leaked in version control, fall out of sync across team members' machines, and require manual server restarts to update in production.
+
 | ❌ The Old Way (`.env` files) | ✅ The VaultFlow Way |
 | :--- | :--- |
 | **Security Risk:** Plain-text secrets scattered across developer laptops. | **Zero-Knowledge:** Secrets encrypted client-side; DB only sees ciphertext. |
@@ -27,98 +29,44 @@
 
 ---
 
-## 🏗️ System Architecture
+## ✨ Key Features
 
-VaultFlow is designed to keep your secrets entirely out of your codebase and configuration files. Here is how data moves through the system:
+* 🛡️ **Zero-Knowledge Architecture:** Secrets are encrypted and decrypted purely on the client-side (in the browser or via the Node.js SDK). The database only ever stores scrambled ciphertext.
+* 🔄 **The "Registry Pattern":** A smart database design that acts as a global source of truth, instantly detecting when a secret falls "Out of Sync" across Development, Staging, and Production environments.
+* 💉 **Runtime Injection SDK:** A custom Node.js script (`vaultflow-inject.js`) that securely fetches and injects secrets into consumer applications at boot time.
+* 📝 **Audit Logging:** Comprehensive tracking of every mutation (create, update, delete) for compliance and rollback capabilities.
+* 🔐 **Stateless Authentication:** Secure JWT-style session management without requiring heavy server-side state.
 
-```mermaid
-graph TD
-    subgraph UI Layer
-        UI[VaultFlow Web UI]
-    end
-    
-    subgraph Zero-Knowledge Boundary
-        Crypt[Client-Side Web Crypto API]
-    end
+---
 
-    subgraph Storage
-        DB[(Supabase PostgreSQL)]
-    end
+## 🔒 Security Model & Architecture
 
-    subgraph Consumer Application
-        SDK[vaultflow-inject.js]
-        App[Node.js Server]
-    end
+VaultFlow is built on a modern, scalable tech stack, prioritizing security above all else. We utilize **AES-256-GCM** authenticated encryption to ensure both the confidentiality and integrity of your data.
 
-    UI -->|Plain-text Secret| Crypt
-    UI -.->|Master Passphrase| Crypt
-    Crypt -->|AES-GCM Ciphertext| DB
-    
-    DB -->|AES-GCM Ciphertext| SDK
-    SDK -.->|Master Passphrase| SDK
-    SDK -->|Decrypts in RAM| SDK
-    SDK -->|Injects process.env| App
-    
-    style DB fill:#1e1e1e,stroke:#3ECF8E,stroke-width:2px,color:#fff
-    style Crypt fill:#1e1e1e,stroke:#646CFF,stroke-width:2px,color:#fff
-    style SDK fill:#1e1e1e,stroke:#339933,stroke-width:2px,color:#fff
+1. **Key Derivation:** When a project is locked, the user's Master Passphrase is run through **PBKDF2** with a random salt and 100,000 iterations to generate a robust 256-bit cryptographic key.
+2. **Encryption at Rest:** The plain-text secret is encrypted using this derived key and a unique Initialization Vector (IV). 
+3. **Storage:** Only the resulting payload (`base64(salt) : base64(iv) : base64(ciphertext)`) is sent to the Supabase PostgreSQL database. The Master Passphrase never leaves the client's device.
 
-    🔒 Security Model: Zero-Knowledge Encryption
-We never see your secrets. VaultFlow uses AES-256-GCM authenticated encryption to ensure both the confidentiality and integrity of your data.
+---
 
-sequenceDiagram
-    participant Dev as Developer
-    participant Browser as Browser (RAM)
-    participant DB as Supabase DB
+## 🛠️ Getting Started (Local Development)
 
-    Dev->>Browser: Enters Master Passphrase & Secret
-    Note over Browser: PBKDF2 Derivation<br/>(100,000 iterations + Salt)
-    Browser->>Browser: Generates 256-bit Key
-    Note over Browser: AES-GCM Encryption<br/>(Secret + Key + IV)
-    Browser->>DB: Sends payload: [Base64 Salt : Base64 IV : Ciphertext]
-    Note over DB: Database stores scrambled text.<br/>Cannot decrypt without Passphrase.
+Want to run VaultFlow locally? Follow these steps.
 
-    🧬 Database Schema & The Registry Pattern
-To efficiently track when a secret is "out of sync" across multiple environments (Dev, Staging, Prod) without complex O(N*M) logic, VaultFlow implements a Registry Pattern.
-
-erDiagram
-    PROJECTS ||--o{ ENVIRONMENTS : has
-    PROJECTS ||--o{ SECRETS : contains
-    PROJECTS ||--o{ PROJECT_SECRET_REGISTRY : tracks
-
-    SECRETS {
-        uuid id
-        string key_name
-        string encrypted_value
-        timestamp updated_at
-    }
-    
-    PROJECT_SECRET_REGISTRY {
-        string key_name
-        timestamp last_updated_at
-        string description
-    }
-
-    💡 How the Sync Check Works: Whenever a secret is updated anywhere, the project_secret_registry.last_updated_at is updated. To check if Environment A is synced, the UI simply compares secrets.updated_at against the master registry timestamp.
-
-    🛠️ Quick Start Guide
 <details>
 <summary><b>1. Database Setup (Supabase)</b></summary>
 
-
-Create a new project in Supabase.
-
-Open the SQL Editor and execute the contents of schema.sql.
-
-Apply any subsequent migrations found in migration_*.sql.
-
+1. Create a new project in [Supabase](https://supabase.com).
+2. Open the SQL Editor and execute the contents of `/Secrets Manager 2/schema.sql` to generate the `projects`, `environments`, `secrets`, `project_secret_registry`, and `audit_logs` tables.
+3. Apply the associated migration files.
 </details>
 
 <details>
-<summary><b>2. Frontend Dashboard Setup</b></summary>
+<summary><b>2. Frontend Setup</b></summary>
 
+```bash
 # Clone the repository
-git clone https://github.com/yourusername/vaultflow.git
+git clone [https://github.com/yourusername/vaultflow.git](https://github.com/yourusername/vaultflow.git)
 cd vaultflow/frontend
 
 # Install dependencies
@@ -127,39 +75,9 @@ npm install
 # Set up environment variables
 cp .env.staging .env.local
 
-Open .env.local and add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+Open .env.local and add your Supabase URL and Anon Key.
 
 # Start the development server
 npm run dev
+
 </details>
-
-🪄 Using the Runtime Injector SDK
-Stop using .env files in your backend projects. Use the VaultFlow Injector to pull secrets dynamically at boot.
-
-1. Configure the Injector
-Copy vaultflow-inject.js into your backend repository. Update the configuration block at the top of the file:
-
-const SUPABASE_URL = 'https://your-project.supabase.co'; 
-const SUPABASE_ANON_KEY = 'your-anon-key'; 
-const PROJECT_ID = 'your-vaultflow-project-uuid'; 
-const ENVIRONMENT_ID = 'your-target-environment-uuid';
-
-2. Boot Your Server
-Instead of running node server.js, wrap your execution in the injector:
-
-node vaultflow-inject.js
-
-Output:
-
-🔒 VaultFlow Injector: Booting up...
-📦 Found 12 encrypted secrets. Decrypting...
-   ✅ Decrypted & Injected: DATABASE_URL
-   ✅ Decrypted & Injected: STRIPE_API_KEY
-   ✅ Decrypted & Injected: AWS_ACCESS_KEY
-🚀 Starting target application...
------------------------------------
-🟢 Application running on http://localhost:3000
-
-<div align="center">
-<i>Designed and engineered with a focus on developer experience and zero-trust security.</i>
-</div>
