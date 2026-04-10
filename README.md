@@ -81,3 +81,46 @@ Open .env.local and add your Supabase URL and Anon Key.
 npm run dev
 
 </details>
+
+🪄 The Magic: VaultFlow Runtime Injector
+The true power of VaultFlow is consuming secrets without .env files. Here is how to use the included custom SDK to inject secrets into any Node.js backend.
+
+1. Configure the Script
+Drop the vaultflow-inject.js script into your target backend project. Open it and add your specific IDs:
+
+const SUPABASE_URL = '[https://your-project.supabase.co](https://your-project.supabase.co)'; 
+const SUPABASE_ANON_KEY = 'your-anon-key'; 
+const PROJECT_ID = 'your-vaultflow-project-uuid'; 
+const ENVIRONMENT_ID = 'your-target-environment-uuid';
+
+2. Boot your Application
+Instead of starting your server with node server.js, wrap it in the injector:
+
+node vaultflow-inject.js
+
+What happens under the hood?
+
+The script authenticates with Supabase and downloads the AES-256-GCM ciphertexts.
+
+It uses the Master Passphrase to decrypt the secrets purely in RAM.
+
+It injects the decrypted plain-text into process.env.
+
+It spawns your target application (e.g., server.js) as a child process, leaving zero trace on the hard drive.
+
+🗂️ Project Structure
+
+├── frontend/
+│   ├── src/
+│   │   ├── components/  # Reusable UI components (Modals, Inputs, Cards)
+│   │   ├── hooks/       # Custom React hooks (useDebounce, useSecretSync)
+│   │   ├── lib/         # Core logic (api.js, crypto.js, supabase.js)
+│   │   └── pages/       # Dashboard, Compare Secrets, Product Landing Pages
+│   └── package.json
+├── schema.sql           # Core PostgreSQL Database Schema
+├── migration_*.sql      # Iterative database updates
+└── vaultflow-inject.js  # The Node.js consumer SDK
+
+<div align="center">
+<i>Designed and engineered with a focus on developer experience and zero-trust security.</i>
+</div> 
