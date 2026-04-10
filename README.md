@@ -33,7 +33,7 @@ VaultFlow is designed to keep your secrets entirely out of your codebase and con
 
 ```mermaid
 graph TD
-    subaxis
+    subgraph UI Layer
         UI[VaultFlow Web UI]
     end
     
@@ -81,12 +81,27 @@ sequenceDiagram
     🧬 Database Schema & The Registry Pattern
 To efficiently track when a secret is "out of sync" across multiple environments (Dev, Staging, Prod) without complex O(N*M) logic, VaultFlow implements a Registry Pattern.
 
-🧬 Database Schema & The Registry Pattern
-To efficiently track when a secret is "out of sync" across multiple environments (Dev, Staging, Prod) without complex O(N*M) logic, VaultFlow implements a Registry Pattern.
+erDiagram
+    PROJECTS ||--o{ ENVIRONMENTS : has
+    PROJECTS ||--o{ SECRETS : contains
+    PROJECTS ||--o{ PROJECT_SECRET_REGISTRY : tracks
 
-💡 How the Sync Check Works: Whenever a secret is updated anywhere, the project_secret_registry.last_updated_at is updated. To check if Environment A is synced, the UI simply compares secrets.updated_at against the master registry timestamp.
+    SECRETS {
+        uuid id
+        string key_name
+        string encrypted_value
+        timestamp updated_at
+    }
+    
+    PROJECT_SECRET_REGISTRY {
+        string key_name
+        timestamp last_updated_at
+        string description
+    }
 
-🛠️ Quick Start Guide
+    💡 How the Sync Check Works: Whenever a secret is updated anywhere, the project_secret_registry.last_updated_at is updated. To check if Environment A is synced, the UI simply compares secrets.updated_at against the master registry timestamp.
+
+    🛠️ Quick Start Guide
 <details>
 <summary><b>1. Database Setup (Supabase)</b></summary>
 
@@ -103,7 +118,7 @@ Apply any subsequent migrations found in migration_*.sql.
 <summary><b>2. Frontend Dashboard Setup</b></summary>
 
 # Clone the repository
-git clone [https://github.com/yourusername/vaultflow.git](https://github.com/yourusername/vaultflow.git)
+git clone https://github.com/yourusername/vaultflow.git
 cd vaultflow/frontend
 
 # Install dependencies
@@ -112,7 +127,7 @@ npm install
 # Set up environment variables
 cp .env.staging .env.local
 
-Open .env.local and add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+Open .env.local and add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
 
 # Start the development server
 npm run dev
@@ -124,18 +139,18 @@ Stop using .env files in your backend projects. Use the VaultFlow Injector to pu
 1. Configure the Injector
 Copy vaultflow-inject.js into your backend repository. Update the configuration block at the top of the file:
 
-const SUPABASE_URL = '[https://your-project.supabase.co](https://your-project.supabase.co)'; 
+const SUPABASE_URL = 'https://your-project.supabase.co'; 
 const SUPABASE_ANON_KEY = 'your-anon-key'; 
 const PROJECT_ID = 'your-vaultflow-project-uuid'; 
 const ENVIRONMENT_ID = 'your-target-environment-uuid';
 
 2. Boot Your Server
 Instead of running node server.js, wrap your execution in the injector:
+
 node vaultflow-inject.js
 
 Output:
 
-Code snippet
 🔒 VaultFlow Injector: Booting up...
 📦 Found 12 encrypted secrets. Decrypting...
    ✅ Decrypted & Injected: DATABASE_URL
