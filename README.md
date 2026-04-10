@@ -11,6 +11,7 @@
 
 <p>
   Stop committing <code>.env</code> files. Start injecting secrets directly into memory.
+  Live working project: (zero-vaultix.vercel.app)
 </p>
 
 </div>
@@ -66,7 +67,7 @@ Want to run VaultFlow locally? Follow these steps.
 
 ```bash
 # Clone the repository
-git clone [https://github.com/yourusername/vaultflow.git](https://github.com/yourusername/vaultflow.git)
+git clone https://github.com/jaspreetkaur031/Secrets-manager.git
 cd vaultflow/frontend
 
 # Install dependencies
@@ -88,10 +89,10 @@ The true power of VaultFlow is consuming secrets without .env files. Here is how
 1. Configure the Script
 Drop the vaultflow-inject.js script into your target backend project. Open it and add your specific IDs:
 
-const SUPABASE_URL = '[https://your-project.supabase.co](https://your-project.supabase.co)'; 
-const SUPABASE_ANON_KEY = 'your-anon-key'; 
-const PROJECT_ID = 'your-vaultflow-project-uuid'; 
-const ENVIRONMENT_ID = 'your-target-environment-uuid';
+const SUPABASE_URL 
+const SUPABASE_ANON_KEY 
+const PROJECT_ID 
+const ENVIRONMENT_ID 
 
 2. Boot your Application
 Instead of starting your server with node server.js, wrap it in the injector:
