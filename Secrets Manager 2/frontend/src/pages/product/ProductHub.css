@@ -760,10 +760,10 @@ body {
         filter: drop-shadow(0 0 12px rgba(16, 143, 185, 0.5)) drop-shadow(0 0 6px rgba(52, 134, 211, 0.3));
         text-shadow: 0 0 10px rgba(31, 115, 189, 0.4);
     }
-    50% {
+    /* 50% {
         filter: drop-shadow(0 0 20px rgba(16, 131, 185, 0.8)) drop-shadow(0 0 10px rgba(52, 118, 211, 0.6));
         text-shadow: 0 0 20px rgba(16, 38, 185, 0.6), 0 0 30px rgba(52, 126, 211, 0.4);
-    }
+    } */
 }
 
 .hero-glow {
