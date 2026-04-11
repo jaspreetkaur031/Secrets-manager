@@ -42,8 +42,9 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
     overflow: hidden;
+    opacity: 0.8;
 }
 
 .object {
@@ -51,8 +52,13 @@ body {
     font-size: 2rem;
     animation: floatUp 8s ease-in-out infinite;
     opacity: 0;
-    color: rgba(59, 130, 246, 0.3);
-    text-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    color: rgba(16, 185, 129, 0.6);
+    text-shadow: 
+        0 0 10px rgba(16, 185, 129, 0.5),
+        0 0 20px rgba(52, 211, 153, 0.3),
+        0 0 30px rgba(16, 185, 129, 0.2);
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+    will-change: transform;
 }
 
 /* Different object types */
@@ -66,9 +72,30 @@ body {
 .cloud::before { content: '☁️'; }
 
 /* Size variations */
-.object.small { font-size: 1.5rem; }
-.object.medium { font-size: 2.5rem; }
-.object.large { font-size: 3rem; }
+.object.small { 
+    font-size: 1.8rem;
+    color: rgba(34, 211, 238, 0.7);
+    text-shadow: 
+        0 0 12px rgba(34, 211, 238, 0.6),
+        0 0 24px rgba(6, 182, 212, 0.4),
+        0 0 36px rgba(34, 211, 238, 0.2);
+}
+.object.medium { 
+    font-size: 2.8rem;
+    color: rgba(16, 185, 129, 0.7);
+    text-shadow: 
+        0 0 14px rgba(16, 185, 129, 0.6),
+        0 0 28px rgba(52, 211, 153, 0.4),
+        0 0 42px rgba(16, 185, 129, 0.2);
+}
+.object.large { 
+    font-size: 3.5rem;
+    color: rgba(168, 85, 247, 0.7);
+    text-shadow: 
+        0 0 16px rgba(168, 85, 247, 0.6),
+        0 0 32px rgba(139, 92, 246, 0.4),
+        0 0 48px rgba(168, 85, 247, 0.2);
+}
 
 /* Animation variations */
 .object:nth-child(2n) {
@@ -109,34 +136,74 @@ body {
 /* Special animations for different object types */
 .key {
     animation-name: floatUpKey;
+    color: rgba(168, 85, 247, 0.7);
+    text-shadow: 
+        0 0 12px rgba(168, 85, 247, 0.5),
+        0 0 24px rgba(139, 92, 246, 0.3),
+        0 0 36px rgba(168, 85, 247, 0.2);
 }
 
 .lock {
     animation-name: floatUpLock;
+    color: rgba(251, 146, 60, 0.7);
+    text-shadow: 
+        0 0 12px rgba(251, 146, 60, 0.5),
+        0 0 24px rgba(249, 115, 22, 0.3),
+        0 0 36px rgba(251, 146, 60, 0.2);
 }
 
 .shield {
     animation-name: floatUpShield;
+    color: rgba(34, 211, 238, 0.7);
+    text-shadow: 
+        0 0 12px rgba(34, 211, 238, 0.5),
+        0 0 24px rgba(6, 182, 212, 0.3),
+        0 0 36px rgba(34, 211, 238, 0.2);
 }
 
 .document {
     animation-name: floatUpDocument;
+    color: rgba(16, 185, 129, 0.7);
+    text-shadow: 
+        0 0 12px rgba(16, 185, 129, 0.5),
+        0 0 24px rgba(52, 211, 153, 0.3),
+        0 0 36px rgba(16, 185, 129, 0.2);
 }
 
 .server {
     animation-name: floatUpServer;
+    color: rgba(59, 130, 246, 0.7);
+    text-shadow: 
+        0 0 12px rgba(59, 130, 246, 0.5),
+        0 0 24px rgba(37, 99, 235, 0.3),
+        0 0 36px rgba(59, 130, 246, 0.2);
 }
 
 .code {
     animation-name: floatUpCode;
+    color: rgba(236, 72, 153, 0.7);
+    text-shadow: 
+        0 0 12px rgba(236, 72, 153, 0.5),
+        0 0 24px rgba(219, 39, 119, 0.3),
+        0 0 36px rgba(236, 72, 153, 0.2);
 }
 
 .database {
     animation-name: floatUpDatabase;
+    color: rgba(168, 85, 247, 0.7);
+    text-shadow: 
+        0 0 12px rgba(168, 85, 247, 0.5),
+        0 0 24px rgba(139, 92, 246, 0.3),
+        0 0 36px rgba(168, 85, 247, 0.2);
 }
 
 .cloud {
     animation-name: floatUpCloud;
+    color: rgba(6, 182, 212, 0.7);
+    text-shadow: 
+        0 0 12px rgba(6, 182, 212, 0.5),
+        0 0 24px rgba(8, 145, 178, 0.3),
+        0 0 36px rgba(6, 182, 212, 0.2);
 }
 
 @keyframes floatUp {
@@ -675,8 +742,28 @@ body {
     animation: gradientShift 4s ease infinite;
 }
 
+/* Enhanced secondary text styling */
 .hero-text-secondary {
-    color: #fff;
+    /* background: linear-gradient(135deg, #10b981 0%, #34d399 25%, #6ee7b7 50%, #a7f3d0 75%, #d1fae5 100%); */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.5)) drop-shadow(0 0 6px rgba(52, 211, 153, 0.3)); */
+    text-shadow: none;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    animation: neonGreenGlow 3s ease-in-out infinite;
+}
+
+@keyframes neonGreenGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 12px rgba(16, 143, 185, 0.5)) drop-shadow(0 0 6px rgba(52, 134, 211, 0.3));
+        text-shadow: 0 0 10px rgba(31, 115, 189, 0.4);
+    }
+    50% {
+        filter: drop-shadow(0 0 20px rgba(16, 131, 185, 0.8)) drop-shadow(0 0 10px rgba(52, 118, 211, 0.6));
+        text-shadow: 0 0 20px rgba(16, 38, 185, 0.6), 0 0 30px rgba(52, 126, 211, 0.4);
+    }
 }
 
 .hero-glow {
@@ -1830,7 +1917,7 @@ body {
     align-items: center;
     text-align: center;
     position: relative;
-    z-index: 1;
+    z-index: 2;
     padding: 120px 2rem 4rem;
     overflow: hidden;
     background: var(--gradient-hero);
@@ -1883,9 +1970,17 @@ body {
 }
 
 .hero-text-secondary {
-    color: #ffffff;
-    text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
-    animation: secondaryTone 10s ease-in-out infinite;
+    background: linear-gradient(135deg, #1070b9 0%, #348ed3 25%, #538bbb 50%, #2d86d4 75%, #699ccb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 12px rgba(16, 143, 185, 0.5)) drop-shadow(0 0 6px rgba(52, 155, 211, 0.3));
+
+
+    text-shadow: none;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    animation: neonGreenGlow 3s ease-in-out infinite;
 }
 
 @keyframes glowText {
