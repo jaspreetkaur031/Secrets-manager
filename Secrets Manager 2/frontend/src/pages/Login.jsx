@@ -61,7 +61,7 @@ export default function Login() {
                     </p>
 
                     <p className="hint">
-                        Demo: Use <code>admin@growthjockey.com</code>
+                        Demo: Use <code>admin@gamail.com</code>
                     </p>
                 </form>
             </div>
